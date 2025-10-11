@@ -1874,7 +1874,14 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
                       </p>
                       {activeVersion ? (
                         <p className="text-xs text-slate-500">
-                          Active: <span className="font-semibold text-slate-700">{activeVersion.title}</span> • Source: {activeVersion.source === 'AI' ? 'AI' : 'Human'} • Updated {new Date(activeVersion.updatedAt).toLocaleString()}
+                          Active:{' '}
+                          <span className="font-semibold text-slate-700">
+                            {activeVersion.title ?? 'Untitled'}
+                          </span>{' '}
+                          • Source: {activeVersion.source === 'AI' ? 'AI' : 'Human'} • Updated{' '}
+                          {activeVersion.updatedAt
+                            ? new Date(activeVersion.updatedAt).toLocaleString()
+                            : 'Unknown'}
                         </p>
                       ) : (
                         <p className="text-xs text-amber-600">
