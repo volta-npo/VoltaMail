@@ -2011,7 +2011,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
                     ) : null}
                   </div>
                 </div>
-                {htmlSuggestions && htmlSuggestions.length > 0 ? (
+                {htmlSuggestions?.length ? (
                   <div className="space-y-3">
                     <div className="flex items-baseline justify-between">
                       <h3 className="text-sm font-medium text-slate-700">Alternate AI layouts</h3>
