@@ -1876,10 +1876,10 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
                         <p className="text-xs text-slate-500">
                           Active:{' '}
                           <span className="font-semibold text-slate-700">
-                            {activeVersion.title ?? 'Untitled'}
+                            {activeVersion?.title ?? 'Untitled'}
                           </span>{' '}
-                          • Source: {activeVersion.source === 'AI' ? 'AI' : 'Human'} • Updated{' '}
-                          {activeVersion.updatedAt
+                          • Source: {activeVersion?.source === 'AI' ? 'AI' : 'Human'} • Updated{' '}
+                          {activeVersion?.updatedAt
                             ? new Date(activeVersion.updatedAt).toLocaleString()
                             : 'Unknown'}
                         </p>
