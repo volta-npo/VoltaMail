@@ -152,7 +152,9 @@ export class AuthService {
         audience: clientId
       });
       payload = ticket.getPayload();
-    } catch {
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[auth] Failed to verify Google ID token', error);
       throw new BadRequestException('Invalid Google credentials.');
     }
 
@@ -249,6 +251,11 @@ export class AuthService {
     }
 
     if (!userId) {
+      // eslint-disable-next-line no-console
+      console.error('[auth] Failed to establish Google user after OAuth', {
+        email,
+        googleAccountId
+      });
       throw new BadRequestException('Failed to establish Google user.');
     }
 
@@ -265,6 +272,8 @@ export class AuthService {
     });
 
     if (!hydratedUser) {
+      // eslint-disable-next-line no-console
+      console.error('[auth] Unable to load user after Google authentication', { userId });
       throw new BadRequestException('Unable to load user after Google authentication.');
     }
 

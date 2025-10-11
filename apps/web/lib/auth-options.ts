@@ -31,6 +31,13 @@ async function googleLoginRequest(idToken: string): Promise<SessionPayload | nul
   });
 
   if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Failed to read error body');
+    console.error(
+      '[auth] googleLoginRequest failed',
+      response.status,
+      response.statusText,
+      errorText
+    );
     return null;
   }
 
