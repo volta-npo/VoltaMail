@@ -111,7 +111,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
   const [htmlDraft, setHtmlDraft] = useState('');
   const [activeTemplateVersionId, setActiveTemplateVersionId] = useState<string | null>(null);
   const [savingVersion, setSavingVersion] = useState(false);
-  const [htmlSuggestions, setHtmlSuggestions] = useState<TemplateVersionSummary[] | null>(null);
+  const [htmlSuggestions, setHtmlSuggestions] = useState<TemplateVersionSummary[] | undefined>(undefined);
   const [iteratingDraftId, setIteratingDraftId] = useState<string | null>(null);
   const [bulkIterating, setBulkIterating] = useState(false);
   const [htmlSuggestionNotes, setHtmlSuggestionNotes] = useState('');
