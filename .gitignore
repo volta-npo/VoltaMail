@@ -1,0 +1,30 @@
+# Dependencies
+node_modules
+
+# Builds
+.next
+dist
+build
+
+# Env files
+.env
+.env.local
+.env.*
+!.env.example
+
+# Logs
+*.log
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Database artifacts
+prisma/migrations
+
+# Misc
+.turbo
+.idea
+.DS_Store
+MERGED_hq_leads_dm_ready.csv

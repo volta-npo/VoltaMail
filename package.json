@@ -1,0 +1,30 @@
+{
+  "name": "smb-gmail-ai-outreach",
+  "private": true,
+  "packageManager": "pnpm@8.15.4",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "format": "prettier --check \"**/*.{js,ts,tsx,json,md,css}\"",
+    "format:write": "prettier --write \"**/*.{js,ts,tsx,json,md,css}\"",
+    "db:start": "docker compose up -d db",
+    "db:stop": "docker compose stop db",
+    "db:logs": "docker compose logs -f db",
+    "db:reset": "docker compose down -v db",
+    "dev:setup": "pnpm db:start && pnpm --filter @email-automation/database db:push"
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^14.2.4",
+    "@typescript-eslint/eslint-plugin": "^7.13.0",
+    "@typescript-eslint/parser": "^7.13.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.34.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "prettier": "^3.3.2",
+    "turbo": "^1.13.3",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}
