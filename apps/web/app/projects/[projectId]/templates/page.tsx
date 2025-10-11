@@ -2024,7 +2024,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
                       </button>
                     </div>
                     <div className="grid gap-4 md:grid-cols-2">
-                      {htmlSuggestions.map((suggestion) => (
+                      {(htmlSuggestions ?? []).map((suggestion) => (
                         <div key={suggestion.id} className="flex flex-col gap-3 rounded border border-slate-200 p-3 shadow-sm">
                           <div className="flex items-start justify-between">
                             <div>
