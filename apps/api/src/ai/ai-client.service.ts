@@ -55,8 +55,9 @@ export class AiClientService {
   }
 
   private async generateWithOpenRouter(options: AiGenerateOptions): Promise<string> {
-    const apiKey = options.apiKey?.trim() ||
-      this.configService.get<string>('OPENROUTER_API_KEY') ??
+    const apiKey =
+      options.apiKey?.trim() ||
+      this.configService.get<string>('OPENROUTER_API_KEY') ||
       process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       throw new BadRequestException(

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "pnpm run build && pnpm run start",
     "start": "node dist/main.js",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "pnpm --filter @email-automation/database db:generate && tsc -p tsconfig.build.json",
     "lint": "eslint src --ext .ts",
     "test": "vitest run"
   },
