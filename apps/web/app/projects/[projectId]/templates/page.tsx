@@ -533,6 +533,12 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
     return selectedTemplate.activeVersion ?? null;
   }, [selectedTemplate, activeTemplateVersionId]);
 
+  const activeVersionTitle = activeVersion?.title ?? 'Untitled';
+  const activeVersionSourceLabel = activeVersion?.source === 'AI' ? 'AI' : 'Human';
+  const activeVersionUpdatedLabel = activeVersion?.updatedAt
+    ? new Date(activeVersion.updatedAt).toLocaleString()
+    : 'Unknown';
+
   const builderPreviewHtml = useMemo(() => {
     return designerPreviewHtml || buildHtmlFromDesigner(designerState).html;
   }, [designerPreviewHtml, designerState]);
@@ -1876,12 +1882,9 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
                         <p className="text-xs text-slate-500">
                           Active:{' '}
                           <span className="font-semibold text-slate-700">
-                            {activeVersion?.title ?? 'Untitled'}
+                            {activeVersionTitle}
                           </span>{' '}
-                          • Source: {activeVersion?.source === 'AI' ? 'AI' : 'Human'} • Updated{' '}
-                          {activeVersion?.updatedAt
-                            ? new Date(activeVersion.updatedAt).toLocaleString()
-                            : 'Unknown'}
+                          • Source: {activeVersionSourceLabel} • Updated {activeVersionUpdatedLabel}
                         </p>
                       ) : (
                         <p className="text-xs text-amber-600">
