@@ -1,9 +1,1 @@
-{
-  "framework": "other",
-  "outputDirectory": ".",
-  "functions": {
-    "api/index.mjs": {
-      "runtime": "nodejs18.x"
-    }
-  }
-}
+{}
