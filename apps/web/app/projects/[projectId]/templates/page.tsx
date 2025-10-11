@@ -583,7 +583,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
     setBody(preset.text);
     setHtmlDraft(preset.html);
     setDesignMode('html');
-    setHtmlSuggestions(null);
+    setHtmlSuggestions(undefined);
     setActiveTemplateVersionId(null);
     setSuccess(`Loaded the ${preset.name} preset. Tweak the copy or ask AI to refine it.`);
   };
@@ -1306,7 +1306,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
           activeVersion: version
         };
       });
-      setHtmlSuggestions(null);
+      setHtmlSuggestions(undefined);
       setSuccess('Adopted AI template design.');
       setDesignMode('html');
     } catch (adoptError) {
@@ -2017,7 +2017,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
                       <h3 className="text-sm font-medium text-slate-700">Alternate AI layouts</h3>
                       <button
                         type="button"
-                        onClick={() => setHtmlSuggestions(null)}
+                        onClick={() => setHtmlSuggestions(undefined)}
                         className="text-xs font-medium text-slate-500 hover:text-slate-700"
                       >
                         Dismiss
