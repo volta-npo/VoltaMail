@@ -6,7 +6,11 @@ import { AppModule } from './app.module.js';
 export async function createApp() {
   const app = await NestFactory.create(AppModule);
   app.use(cookieParser());
-  app.setGlobalPrefix('api');
+
+  const rawPrefix = (process.env.NEST_GLOBAL_PREFIX ?? 'api').trim();
+  if (rawPrefix && rawPrefix !== '/') {
+    app.setGlobalPrefix(rawPrefix.replace(/^\/+/, ''));
+  }
 
   const defaultOrigins = [
     'http://localhost:3000',
