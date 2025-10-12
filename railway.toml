@@ -1,0 +1,4 @@
+[service]
+name = "api"
+source = "apps/api"
+builder = "dockerfile"
