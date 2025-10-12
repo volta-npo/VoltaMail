@@ -1,6 +1,7 @@
 require('reflect-metadata');
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('url');
 
 let cachedServer;
 
@@ -8,9 +9,11 @@ async function getServer() {
   if (!cachedServer) {
     try {
       const baseDir = __dirname;
+      console.log('[bootstrap] baseDir', baseDir);
+      console.log('[bootstrap] baseDir contents', fs.readdirSync(baseDir));
+      console.log('[bootstrap] parent contents', fs.readdirSync(path.join(baseDir, '..')));
       const distCandidate = path.join(baseDir, '..', 'dist', 'app.factory.js');
       const altCandidate = path.join(baseDir, '..', 'apps', 'api', 'dist', 'app.factory.js');
-      console.log('[bootstrap] baseDir', baseDir);
       console.log('[bootstrap] candidates', distCandidate, fs.existsSync(distCandidate), altCandidate, fs.existsSync(altCandidate));
       const modulePath = fs.existsSync(distCandidate) ? distCandidate : altCandidate;
       const { createApp } = await import(pathToFileURL(modulePath).href);
@@ -25,8 +28,6 @@ async function getServer() {
 
   return cachedServer;
 }
-
-const { pathToFileURL } = require('url');
 
 module.exports = async function handler(req, res) {
   try {
