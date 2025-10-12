@@ -25,7 +25,7 @@ module.exports = async function handler(req, res) {
   } catch (error) {
     console.error('[handler] Request failed', req.url, error);
     res.statusCode = 500;
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ error: error.message, stack: error.stack }));
+    res.setHeader('Content-Type', 'text/plain');
+    res.end(`Bootstrap failed: ${error?.message || error}`);
   }
 };
