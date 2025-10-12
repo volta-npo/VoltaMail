@@ -1,4 +1,7 @@
 import 'reflect-metadata';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 let cachedServer;
 
@@ -9,18 +12,29 @@ async function loadAppFactory() {
     '../../dist/app.factory.js',
     '../../apps/api/dist/app.factory.js'
   ];
+  const baseDir = fileURLToPath(new URL('.', import.meta.url));
+  const listDir = (dir) => {
+    try {
+      return fs.readdirSync(dir);
+    } catch (error) {
+      return `unavailable (${error?.message ?? error})`;
+    }
+  };
+
   const errors = [];
 
   for (const candidate of candidates) {
     try {
-      const moduleUrl = new URL(candidate, import.meta.url);
+      const moduleUrl = pathToFileURL(path.resolve(baseDir, candidate));
       return await import(moduleUrl.href);
     } catch (error) {
       errors.push(`${candidate}: ${error?.message ?? error}`);
     }
   }
 
-  throw new Error(`Unable to load app.factory.js. Tried: ${errors.join(' | ')}`);
+  throw new Error(
+    `Unable to load app.factory.js. baseDir=${baseDir}, baseEntries=${JSON.stringify(listDir(baseDir))}, parentEntries=${JSON.stringify(listDir(path.dirname(baseDir)))}, Tried: ${errors.join(' | ')}`
+  );
 }
 
 async function getServer() {
