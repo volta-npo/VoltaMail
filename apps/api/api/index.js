@@ -1,10 +1,10 @@
-import 'reflect-metadata';
-import { createApp } from '../dist/app.factory.js';
+require('reflect-metadata');
 
 let cachedServer;
 
 async function getServer() {
   if (!cachedServer) {
+    const { createApp } = await import('../dist/app.factory.js');
     const app = await createApp();
     await app.init();
     cachedServer = app.getHttpAdapter().getInstance();
@@ -13,7 +13,7 @@ async function getServer() {
   return cachedServer;
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const server = await getServer();
   return server(req, res);
-}
+};
