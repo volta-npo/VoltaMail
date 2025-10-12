@@ -4,6 +4,7 @@ let cachedServer;
 
 async function loadAppFactory() {
   const candidates = [
+    './dist/app.factory.js',
     '../dist/app.factory.js',
     '../../dist/app.factory.js',
     '../../apps/api/dist/app.factory.js'
