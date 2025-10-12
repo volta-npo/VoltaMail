@@ -17,6 +17,12 @@ async function getServer() {
 }
 
 module.exports = async function handler(req, res) {
-  const server = await getServer();
-  return server(req, res);
+  try {
+    const server = await getServer();
+    return server(req, res);
+  } catch (error) {
+    res.statusCode = 500;
+    res.setHeader('Content-Type', 'text/plain');
+    res.end(`Bootstrap failed: ${error?.message || error}`);
+  }
 };
