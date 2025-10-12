@@ -1,7 +1,10 @@
 {
   "functions": {
     "api/*.js": {
-      "includeFiles": "dist/**"
+      "includeFiles": [
+        "dist/**",
+        "apps/api/dist/**"
+      ]
     }
   }
 }
