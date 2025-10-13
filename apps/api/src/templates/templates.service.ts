@@ -230,10 +230,10 @@ export class TemplatesService {
       dto.model
     );
 
-    const results: AiDraftResult[] = [];
-    for (const lead of leads) {
-      const systemPrompt =
-        'You are a helpful outreach email specialist and HTML email designer. Use the provided knowledge base to create a personalized email. Respond with valid JSON containing "subject", "body" (plain text) and "html" (well-formed HTML that uses inline styles).';
+    const systemPrompt =
+      'You are a helpful outreach email specialist and HTML email designer. Use the provided knowledge base to create a personalized email. Respond with valid JSON containing "subject", "body" (plain text) and "html" (well-formed HTML that uses inline styles).';
+
+    const generateForLead = async (lead: (typeof leads)[number]): Promise<AiDraftResult> => {
       const userPrompt = buildUserPrompt({
         knowledgeBase,
         knowledgeSources,
@@ -263,7 +263,7 @@ export class TemplatesService {
           : 'Enhanced personalization applied.'
         : undefined;
 
-      results.push({
+      return {
         leadId: lead.id,
         email: lead.email,
         subject,
@@ -272,8 +272,31 @@ export class TemplatesService {
         templateVersionId: activeVersion?.id ?? undefined,
         provider: generationConfig.provider,
         notes
-      });
-    }
+      };
+    };
+
+    const configuredConcurrency = Number.parseInt(process.env.AI_DRAFT_CONCURRENCY ?? '', 10);
+    const maxConcurrency = Number.isFinite(configuredConcurrency) && configuredConcurrency > 0
+      ? configuredConcurrency
+      : 4;
+
+    const workerCount = Math.min(Math.max(1, maxConcurrency), leads.length);
+    const results: AiDraftResult[] = new Array(leads.length);
+    let nextIndex = 0;
+
+    const runWorker = async () => {
+      while (true) {
+        const currentIndex = nextIndex;
+        nextIndex += 1;
+        if (currentIndex >= leads.length) {
+          break;
+        }
+        const lead = leads[currentIndex];
+        results[currentIndex] = await generateForLead(lead);
+      }
+    };
+
+    await Promise.all(Array.from({ length: workerCount }, runWorker));
 
     return results;
   }

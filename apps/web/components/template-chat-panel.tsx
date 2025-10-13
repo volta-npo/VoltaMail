@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AiChatMessage } from "@email-automation/shared";
 
 interface TemplateChatPanelProps {
@@ -17,6 +17,8 @@ export function TemplateChatPanel({ open, onClose, messages, onSend, isSending, 
   const formRef = useRef<HTMLFormElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
+  const previousMessageCountRef = useRef<number>(0);
+  const [lastAppliedKey, setLastAppliedKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -28,13 +30,20 @@ export function TemplateChatPanel({ open, onClose, messages, onSend, isSending, 
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    if (messages.length === 0 || messages.length > previousMessageCountRef.current) {
+      setLastAppliedKey(null);
+    }
+    previousMessageCountRef.current = messages.length;
+  }, [messages.length]);
+
   if (!open) {
     return null;
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-end bg-slate-900/40 px-4 pb-6">
-      <div className="flex w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+      <div className="flex w-full max-w-lg max-h-[80vh] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
         <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <div>
             <h2 className="text-base font-semibold text-slate-900">Chat with Volta</h2>
@@ -85,13 +94,28 @@ export function TemplateChatPanel({ open, onClose, messages, onSend, isSending, 
                         </details>
                       ) : null}
                       {onApplyUpdate ? (
-                        <button
-                          type="button"
-                          onClick={() => onApplyUpdate(message.updates!)}
-                          className="inline-flex items-center rounded border border-emerald-500 px-2 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-50"
-                        >
-                          Apply these changes
-                        </button>
+                        (() => {
+                          const messageKey = `${message.role}-${index}-${message.content.length}`;
+                          const applied = lastAppliedKey === messageKey;
+
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onApplyUpdate(message.updates!);
+                                setLastAppliedKey(messageKey);
+                              }}
+                              disabled={applied}
+                              className={`inline-flex items-center rounded border px-2 py-1 text-xs font-medium ${
+                                applied
+                                  ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                                  : "border-emerald-500 text-emerald-600 hover:bg-emerald-50"
+                              } disabled:opacity-70`}
+                            >
+                              {applied ? "Applied ✓" : "Apply these changes"}
+                            </button>
+                          );
+                        })()
                       ) : null}
                     </div>
                   ) : null}

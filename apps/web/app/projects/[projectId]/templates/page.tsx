@@ -2151,13 +2151,12 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
                 </select>
               </label>
             )}
-            <Link
+            <a
               href={`/integrations/gmail/connect?projectId=${projectId}`}
-              prefetch={false}
               className="mt-3 inline-flex items-center text-sm font-medium text-slate-700 hover:text-slate-900"
             >
               Connect another account →
-            </Link>
+            </a>
             {gmailConnections.length > 0 && activeConnection?.needsReauth ? (
               <div className="mt-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                 Gmail access for <span className="font-medium">{activeConnection.email}</span> has expired.
@@ -2806,6 +2805,17 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
             />
             <span>
               Allow research assistance (may incur higher AI usage). Turn off to keep copy strictly to known context.
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-xs text-slate-500">
+            <input
+              type="checkbox"
+              checked={bulkSendEnabled}
+              onChange={(event) => setBulkSendEnabled(event.target.checked)}
+              className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-slate-900 focus:ring-2 focus:ring-slate-500/20"
+            />
+            <span>
+              Enable one-click send from preview. When on, approving a draft sends immediately using the selected Gmail connection.
             </span>
           </label>
         </div>
