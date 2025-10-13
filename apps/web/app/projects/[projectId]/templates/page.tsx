@@ -2153,6 +2153,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
             )}
             <Link
               href={`/integrations/gmail/connect?projectId=${projectId}`}
+              prefetch={false}
               className="mt-3 inline-flex items-center text-sm font-medium text-slate-700 hover:text-slate-900"
             >
               Connect another account →
