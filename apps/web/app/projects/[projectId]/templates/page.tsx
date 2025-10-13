@@ -128,6 +128,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
   const [bulkSending, setBulkSending] = useState(false);
   const [bulkSendEnabled, setBulkSendEnabled] = useState(false);
   const [previewSending, setPreviewSending] = useState(false);
+  const [previewSendingId, setPreviewSendingId] = useState<string | null>(null);
   const [htmlDraft, setHtmlDraft] = useState('');
   const [activeTemplateVersionId, setActiveTemplateVersionId] = useState<string | null>(null);
   const [savingVersion, setSavingVersion] = useState(false);
@@ -1348,7 +1349,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
             leadId: row.leadId,
             subject: row.subject,
             body: row.body,
-            html: undefined,
+            html: `<div style="font-family: Arial, sans-serif; padding: 16px;">${row.body.replace(/\n/g, '<br />')}</div>`,
             templateVersionId: activeVersion?.id ?? activeTemplateVersionId ?? undefined
           })),
           gmailConnectionId: selectedConnectionId || undefined
@@ -1400,6 +1401,75 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
       await refreshConnections();
     } finally {
       setPreviewSending(false);
+    }
+  };
+
+  const handleSendPreviewRow = async (row: RenderedLeadPreview) => {
+    if (!bulkSendEnabled) {
+      setError('Enable bulk send to dispatch emails from preview.');
+      return;
+    }
+
+    if (!selectedId) {
+      setError('Save your template before sending emails.');
+      return;
+    }
+
+    if (!activeConnection) {
+      setError('Connect a Gmail account before sending emails.');
+      return;
+    }
+
+    if (activeConnection.needsReauth) {
+      setError('Reconnect your Gmail account to refresh access before sending emails.');
+      return;
+    }
+
+    setPreviewSendingId(row.leadId);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/v1/templates/${selectedId}/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-session-token': sessionToken ?? ''
+        },
+        body: JSON.stringify({
+          leadId: row.leadId,
+          subject: row.subject,
+          body: row.body,
+          html: row.body ? `<div style="font-family: Arial, sans-serif; padding: 16px;">${row.body.replace(/\n/g, '<br />')}</div>` : undefined,
+          templateVersionId: activeVersion?.id ?? activeTemplateVersionId ?? undefined,
+          gmailConnectionId: selectedConnectionId || undefined
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(await extractErrorMessage(response));
+      }
+
+      const result = (await response.json()) as SendDraftResponse;
+      setSentLog((prev) => [
+        {
+          leadId: row.leadId,
+          email: row.email,
+          subject: row.subject,
+          messageId: result.messageId,
+          sentAt: result.sentAt,
+          gmailConnectionEmail: result.gmailConnectionEmail
+        },
+        ...prev
+      ]);
+      setSelectedLeadIds((prev) => prev.filter((id) => id !== row.leadId));
+      setSuccess(`Sent email to ${row.email}`);
+    } catch (sendError) {
+      const message = sendError instanceof Error ? sendError.message : 'Failed to send preview email';
+      setError(message);
+      await refreshConnections();
+    } finally {
+      setPreviewSendingId(null);
     }
   };
 
@@ -2733,6 +2803,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50">
                 <tr>
+                  <th className="px-3 py-2 text-left font-semibold text-slate-700">Send</th>
                   <th className="px-3 py-2 text-left font-semibold text-slate-700">Lead</th>
                   <th className="px-3 py-2 text-left font-semibold text-slate-700">Subject</th>
                   <th className="px-3 py-2 text-left font-semibold text-slate-700">Body</th>
@@ -2741,6 +2812,17 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
               <tbody>
                 {preview.map((row) => (
                   <tr key={row.leadId} className="odd:bg-white even:bg-slate-50">
+                    <td className="px-3 py-2 text-slate-600">
+                      <button
+                        type="button"
+                        onClick={() => handleSendPreviewRow(row)}
+                        disabled={previewSendingId === row.leadId || previewSending || !bulkSendEnabled}
+                        className="rounded-full border border-slate-300 p-2 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+                        aria-label={`Send email to ${row.email}`}
+                      >
+                        ✈️
+                      </button>
+                    </td>
                     <td className="px-3 py-2 text-slate-600">{row.email}</td>
                     <td className="px-3 py-2 text-slate-700">{row.subject}</td>
                     <td className="whitespace-pre-wrap px-3 py-2 text-slate-600">{row.body}</td>
