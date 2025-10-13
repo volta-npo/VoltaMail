@@ -129,6 +129,7 @@ export interface AiDraftResult {
   provider: string;
   html?: string | null;
   templateVersionId?: string | null;
+  notes?: string;
 }
 
 export interface SendDraftResponse {
@@ -171,6 +172,18 @@ export interface KnowledgeSource {
   summary: string;
   snippet: string;
   createdAt: string;
+}
+
+export type AiChatRole = 'user' | 'assistant';
+
+export interface AiChatMessage {
+  role: AiChatRole;
+  content: string;
+}
+
+export interface AiChatResponse {
+  message: string;
+  tokensApprox?: number;
 }
 
 export interface DraftToSend {

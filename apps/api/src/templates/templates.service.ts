@@ -23,12 +23,16 @@ import {
   BulkSendResult,
   TemplateVersionSummary,
   TemplateVersionType,
-  TemplateVersionSource
+  TemplateVersionSource,
+  KnowledgeSource,
+  AiChatMessage,
+  AiChatResponse
 } from '@email-automation/shared';
 import { renderTemplate } from './template-renderer.js';
 import { AiClientService } from '../ai/ai-client.service.js';
 import { GmailService } from '../gmail/gmail.service.js';
 import { AiConfigService } from '../ai/ai-config.service.js';
+import { randomUUID } from 'node:crypto';
 
 @Injectable()
 export class TemplatesService {
@@ -215,6 +219,7 @@ export class TemplatesService {
     }
 
     const knowledgeBase = buildKnowledgeBase(template.project.brandingJson);
+    const knowledgeSources = extractKnowledgeSources(template.project.brandingJson);
     const activeVersion = template.activeVersion;
     const baseTextTemplate = activeVersion?.textContent ?? template.body;
     const baseHtmlTemplate = activeVersion?.htmlContent ?? null;
@@ -231,10 +236,15 @@ export class TemplatesService {
         'You are a helpful outreach email specialist and HTML email designer. Use the provided knowledge base to create a personalized email. Respond with valid JSON containing "subject", "body" (plain text) and "html" (well-formed HTML that uses inline styles).';
       const userPrompt = buildUserPrompt({
         knowledgeBase,
+        knowledgeSources,
         templateSubject: template.subject,
         textTemplate: baseTextTemplate,
         htmlTemplate: baseHtmlTemplate ?? undefined,
-        lead
+        lead,
+        personalization: {
+          enhanced: Boolean(dto.enhancedPersonalization),
+          allowToolUse: Boolean(dto.allowToolUse)
+        }
       });
 
       const raw = await this.aiClient.generate({
@@ -247,6 +257,12 @@ export class TemplatesService {
 
       const { subject, body, html } = parseAiResponse(raw);
 
+      const notes = dto.enhancedPersonalization
+        ? dto.allowToolUse
+          ? 'Enhanced personalization with research assistance applied.'
+          : 'Enhanced personalization applied.'
+        : undefined;
+
       results.push({
         leadId: lead.id,
         email: lead.email,
@@ -254,11 +270,78 @@ export class TemplatesService {
         body,
         html,
         templateVersionId: activeVersion?.id ?? undefined,
-        provider: generationConfig.provider
+        provider: generationConfig.provider,
+        notes
       });
     }
 
     return results;
+  }
+
+  async chatWithTemplate(
+    templateId: string,
+    dto: { message: string; history?: AiChatMessage[] },
+    user: AuthenticatedUser
+  ): Promise<AiChatResponse> {
+    const template = await this.prisma.template.findUnique({
+      where: { id: templateId },
+      include: {
+        project: true,
+        activeVersion: true
+      }
+    });
+
+    if (!template) {
+      throw new NotFoundException('Template not found');
+    }
+
+    await this.projectAccess.ensureProjectAccess(template.projectId, user);
+
+    const knowledgeBase = buildKnowledgeBase(template.project.brandingJson);
+    const knowledgeSources = extractKnowledgeSources(template.project.brandingJson);
+    const activeVersion = template.activeVersion;
+
+    const conversationHistory = (dto.history ?? [])
+      .map((message) => `${message.role === 'assistant' ? 'Assistant' : 'User'}: ${message.content}`)
+      .join('\n');
+
+    const sourceHighlights = knowledgeSources.slice(0, 3).map((source, index) => {
+      const title = source.title ?? source.url ?? `Source ${index + 1}`;
+      return `- ${title}: ${source.summary || source.snippet}`;
+    });
+
+    const systemPrompt = [
+      'You are Volta, an outreach copywriting assistant helping refine cold email templates.',
+      'You have access to the organization\'s knowledge base and recent AI drafts.',
+      'Provide concise, actionable suggestions, and show revised snippets when appropriate.'
+    ].join(' ');
+
+    const templateSummary = `Current template name: ${template.name}\nSubject: ${template.subject}\nBody:\n${template.body}`;
+    const htmlSection = activeVersion?.htmlContent
+      ? `\nCurrent HTML version:\n${activeVersion.htmlContent}`
+      : '';
+
+    const researchSection = sourceHighlights.length
+      ? `\nResearch highlights:\n${sourceHighlights.join('\n')}`
+      : '';
+
+    const chatPrompt = `${conversationHistory ? `${conversationHistory}\n` : ''}User: ${dto.message}`;
+
+    const userPrompt = `Knowledge Base:\n${knowledgeBase}${researchSection}\n\nTemplate Context:\n${templateSummary}${htmlSection}\n\nConversation:\n${chatPrompt}\n\nInstructions:\n- Respond as a helpful AI teammate.\n- Offer concrete edits or suggestions.\n- If you rewrite copy, present it clearly.\n- Keep responses under 180 words unless user requests otherwise.`;
+
+    const generationConfig = await this.aiConfig.resolveGenerationConfig(user.organizationId);
+
+    const raw = await this.aiClient.generate({
+      provider: generationConfig.provider,
+      systemPrompt,
+      userPrompt,
+      model: generationConfig.model,
+      apiKey: generationConfig.apiKey
+    });
+
+    return {
+      message: raw.trim()
+    };
   }
 
   async sendDraft(
@@ -876,8 +959,49 @@ function buildKnowledgeBase(brandingJson: unknown): string {
   return 'No brand guidelines provided. Keep tone professional, concise, and helpful.';
 }
 
+function extractKnowledgeSources(brandingJson: unknown): KnowledgeSource[] {
+  if (!brandingJson || typeof brandingJson !== 'object') {
+    return [];
+  }
+
+  const record = brandingJson as Record<string, unknown>;
+  const raw = Array.isArray(record.knowledgeSources) ? record.knowledgeSources : [];
+
+  const sources: KnowledgeSource[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') {
+      continue;
+    }
+    const obj = item as Record<string, unknown>;
+    const id = typeof obj.id === 'string' ? obj.id : randomUUID();
+    const type: KnowledgeSource['type'] =
+      obj.type === 'website' || obj.type === 'googleDoc' || obj.type === 'upload'
+        ? obj.type
+        : 'upload';
+    const summary = typeof obj.summary === 'string' ? obj.summary : '';
+    const snippet = typeof obj.snippet === 'string' ? obj.snippet : '';
+    const createdAt =
+      typeof obj.createdAt === 'string' ? obj.createdAt : new Date().toISOString();
+    const url = typeof obj.url === 'string' ? obj.url : undefined;
+    const title = typeof obj.title === 'string' ? obj.title : undefined;
+
+    sources.push({
+      id,
+      type,
+      url: url ?? undefined,
+      title: title ?? undefined,
+      summary,
+      snippet,
+      createdAt
+    });
+  }
+
+  return sources;
+}
+
 function buildUserPrompt(args: {
   knowledgeBase: string;
+  knowledgeSources: KnowledgeSource[];
   templateSubject: string;
   textTemplate: string;
   htmlTemplate?: string;
@@ -892,8 +1016,20 @@ function buildUserPrompt(args: {
     address?: string | null;
     customJson?: unknown;
   };
+  personalization?: {
+    enhanced: boolean;
+    allowToolUse: boolean;
+  };
 }): string {
-  const { knowledgeBase, templateSubject, textTemplate, htmlTemplate, lead } = args;
+  const {
+    knowledgeBase,
+    knowledgeSources,
+    templateSubject,
+    textTemplate,
+    htmlTemplate,
+    lead,
+    personalization
+  } = args;
   const leadData = {
     email: lead.email,
     first_name: lead.firstName,
@@ -913,7 +1049,48 @@ function buildUserPrompt(args: {
     ? `\nHTML Template:\n${htmlTemplate}\n`
     : '';
 
-  return `Knowledge Base:\n${knowledgeBase}\n\nBase Template:\nSubject: ${templateSubject}\nText Body:\n${textTemplate}${htmlSection}\nLead Data (JSON):\n${JSON.stringify(leadData, null, 2)}\n\nInstructions:\n- Maintain a friendly, human tone.\n- Keep body under 150 words.\n- Include a single clear call-to-action.\n- If an HTML template is provided, reuse its layout/styles while personalizing copy.\n- Return your answer as JSON with keys 'subject', 'body' (plain text) and 'html' (HTML email).`;
+  const sourceHighlights = knowledgeSources.slice(0, 3).map((source, index) => {
+    const title = source.title ?? source.url ?? `Source ${index + 1}`;
+    const summary = source.summary || source.snippet;
+    return `- ${title}: ${summary}`.trim();
+  });
+
+  const personalizationInstructions: string[] = [];
+  if (personalization?.enhanced) {
+    personalizationInstructions.push(
+      'Open with a tailored hook that references the lead\'s role and company priorities.'
+    );
+    personalizationInstructions.push(
+      'Highlight one specific insight or compliment that shows genuine research.'
+    );
+    personalizationInstructions.push('Keep the message under 160 words even with personal touches.');
+  }
+
+  if (personalization?.allowToolUse) {
+    if (sourceHighlights.length > 0) {
+      personalizationInstructions.push('Blend in relevant ideas from the research highlights below.');
+    }
+    personalizationInstructions.push(
+      'If you infer details beyond the provided data, flag them as observations rather than confirmed facts.'
+    );
+  } else {
+    personalizationInstructions.push('Do not fabricate facts beyond the supplied context.');
+  }
+
+  const researchSection =
+    sourceHighlights.length > 0
+      ? `\nResearch Highlights (for personalization):\n${sourceHighlights.join('\n')}`
+      : '';
+
+  const extraInstructions = personalizationInstructions.length
+    ? `\n- ${personalizationInstructions.join('\n- ')}`
+    : '';
+
+  return `Knowledge Base:\n${knowledgeBase}\n\nBase Template:\nSubject: ${templateSubject}\nText Body:\n${textTemplate}${htmlSection}\nLead Data (JSON):\n${JSON.stringify(
+    leadData,
+    null,
+    2
+  )}${researchSection}\n\nInstructions:\n- Maintain a friendly, human tone.\n- Keep body under 150 words.\n- Include a single clear call-to-action.\n- If an HTML template is provided, reuse its layout/styles while personalizing copy.\n- Return your answer as JSON with keys 'subject', 'body' (plain text) and 'html' (HTML email).${extraInstructions}`;
 }
 
 function parseAiResponse(raw: string): { subject: string; body: string; html: string | null } {
@@ -947,6 +1124,18 @@ function parseAiResponse(raw: string): { subject: string; body: string; html: st
 
   if (body.length === 0) {
     body = raw.trim();
+  }
+
+  const normalize = (value: string) =>
+    value
+      .replace(/\\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+  subject = normalize(subject).replace(/\s+/g, ' ');
+  body = normalize(body);
+  if (html) {
+    html = normalize(html);
   }
 
   return { subject, body, html };

@@ -14,9 +14,11 @@ import {
   AiTemplateSuggestion,
   BulkSendResponse,
   TemplateVersionSummary,
-  KnowledgeSource
+  KnowledgeSource,
+  AiChatMessage
 } from "@email-automation/shared";
 import { TemplateDesigner, defaultDesignerState, TemplateDesignerState, buildHtmlFromDesigner } from "@/components/template-designer";
+import TemplateChatPanel from "@/components/template-chat-panel";
 import { API_BASE_URL } from "@/lib/config";
 
 type TemplatePreset = {
@@ -66,6 +68,10 @@ interface PersistedState {
   designMode?: 'builder' | 'html';
   strategyNotes?: string;
   htmlSuggestionNotes?: string;
+  chatHistory?: AiChatMessage[];
+  enhancedPersonalization?: boolean;
+  allowToolUse?: boolean;
+  bulkSendEnabled?: boolean;
 }
 
 const STORAGE_KEY = (projectId: string) => `templates-state-${projectId}`;
@@ -107,6 +113,8 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
   const [deleteIntent, setDeleteIntent] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const deletePhrase = 'I am sure I want to delete my knowledge base';
+  const [enhancedPersonalization, setEnhancedPersonalization] = useState(false);
+  const [allowToolUse, setAllowToolUse] = useState(true);
   const [gmailConnections, setGmailConnections] = useState<GmailConnectionSummary[]>([]);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string>('');
   const [sendingDraftId, setSendingDraftId] = useState<string | null>(null);
@@ -118,6 +126,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
   const [sentLog, setSentLog] = useState<SentLogEntry[]>([]);
   const [suggestingTemplate, setSuggestingTemplate] = useState(false);
   const [bulkSending, setBulkSending] = useState(false);
+  const [bulkSendEnabled, setBulkSendEnabled] = useState(false);
   const [htmlDraft, setHtmlDraft] = useState('');
   const [activeTemplateVersionId, setActiveTemplateVersionId] = useState<string | null>(null);
   const [savingVersion, setSavingVersion] = useState(false);
@@ -136,6 +145,10 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [strategyNotes, setStrategyNotes] = useState('');
   const [vibeNotes, setVibeNotes] = useState<Record<string, string>>({});
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatHistory, setChatHistory] = useState<AiChatMessage[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
   const handleDesignerPreview = useCallback((html: string, text: string) => {
     setDesignerPreviewHtml(html);
     setDesignerPreviewText(text);
@@ -205,6 +218,18 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
         }
         if (parsed.htmlSuggestionNotes !== undefined) {
           setHtmlSuggestionNotes(parsed.htmlSuggestionNotes);
+        }
+        if (parsed.chatHistory) {
+          setChatHistory(parsed.chatHistory);
+        }
+        if (typeof parsed.enhancedPersonalization === "boolean") {
+          setEnhancedPersonalization(parsed.enhancedPersonalization);
+        }
+        if (typeof parsed.allowToolUse === "boolean") {
+          setAllowToolUse(parsed.allowToolUse);
+        }
+        if (typeof parsed.bulkSendEnabled === "boolean") {
+          setBulkSendEnabled(parsed.bulkSendEnabled);
         }
       } else {
         persistedRef.current = null;
@@ -473,7 +498,11 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
       designerState,
       designMode,
       strategyNotes: strategyNotes || undefined,
-      htmlSuggestionNotes: htmlSuggestionNotes || undefined
+      htmlSuggestionNotes: htmlSuggestionNotes || undefined,
+      chatHistory: chatHistory.length > 0 ? chatHistory.slice(-20) : undefined,
+      enhancedPersonalization: enhancedPersonalization || undefined,
+      allowToolUse: enhancedPersonalization ? allowToolUse : undefined,
+      bulkSendEnabled: bulkSendEnabled || undefined
     };
 
     persistedRef.current = payload;
@@ -503,7 +532,11 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
     designMode,
     selectedPresetId,
     strategyNotes,
-    htmlSuggestionNotes
+    htmlSuggestionNotes,
+    chatHistory,
+    enhancedPersonalization,
+    allowToolUse,
+    bulkSendEnabled
   ]);
 
   const filteredLeads = useMemo(() => {
@@ -916,7 +949,9 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
         body: JSON.stringify({
           sampleSize,
           provider: aiProvider,
-          leadIds: effectiveLeadIds
+          leadIds: effectiveLeadIds,
+          enhancedPersonalization: enhancedPersonalization || undefined,
+          allowToolUse: enhancedPersonalization ? allowToolUse : undefined
         })
       });
 
@@ -947,13 +982,20 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
         setAiDrafts(enriched);
       }
 
+      let baseMessage: string;
       if (effectiveLeadIds && effectiveLeadIds.length === 1 && data[0]) {
-        setSuccess(`Generated draft for ${data[0].email}`);
+        baseMessage = `Generated draft for ${data[0].email}`;
       } else if (effectiveLeadIds && effectiveLeadIds.length > 1) {
-        setSuccess(`Generated ${data.length} drafts for selected leads.`);
+        baseMessage = `Generated ${data.length} drafts for selected leads.`;
       } else {
-        setSuccess(`Generated ${data.length} drafts from recent leads.`);
+        baseMessage = `Generated ${data.length} drafts from recent leads.`;
       }
+
+      if (enhancedPersonalization) {
+        baseMessage = `${baseMessage} Personalization boost enabled${allowToolUse ? ' with research assistance.' : '.'}`;
+      }
+
+      setSuccess(baseMessage);
     } catch (aiError) {
       setError(aiError instanceof Error ? aiError.message : "Failed to generate AI drafts");
     } finally {
@@ -963,6 +1005,60 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
 
   const handleRegenerateDraft = async (leadId: string) => {
     await handleGenerateAi(1, [leadId]);
+  };
+
+  const handleChatSend = async (message: string) => {
+    if (!sessionToken) {
+      setChatError("Your session expired. Please refresh and sign in again.");
+      return;
+    }
+
+    let templateId = selectedId;
+    if (!templateId) {
+      const created = await handleCreate({ suppressToast: true });
+      if (!created) {
+        setChatError("Save your template before chatting.");
+        return;
+      }
+      templateId = created.id;
+      setSelectedId(created.id);
+    } else {
+      const saved = await handleSave({ suppressToast: true });
+      if (!saved) {
+        setChatError("Save your template before chatting.");
+        return;
+      }
+    }
+
+    setChatError(null);
+    const nextHistory: AiChatMessage[] = [...chatHistory, { role: "user", content: message }];
+    setChatHistory(nextHistory);
+    setChatLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/v1/templates/${templateId}/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-session-token": sessionToken ?? ""
+        },
+        body: JSON.stringify({
+          message,
+          history: nextHistory.slice(0, -1)
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(await extractErrorMessage(response));
+      }
+
+      const data = (await response.json()) as { message: string };
+      setChatHistory((prev) => [...prev, { role: "assistant", content: data.message.trim() }]);
+    } catch (chatErr) {
+      setChatError(chatErr instanceof Error ? chatErr.message : "Chat request failed");
+    } finally {
+      setChatLoading(false);
+    }
   };
 
   const handleGenerateAiTemplateBundle = async (options?: { designOnly?: boolean }) => {
@@ -1083,6 +1179,10 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
   };
 
   const handleApproveAllDrafts = async () => {
+    if (!bulkSendEnabled) {
+      return;
+    }
+
     if (!selectedId || !aiDrafts || aiDrafts.length === 0) {
       return;
     }
@@ -2179,6 +2279,44 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
               >
                 {generatingAi ? "Generating drafts…" : "Generate drafts"}
               </button>
+              <button
+                type="button"
+                onClick={() => setChatOpen(true)}
+                className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Chat with AI
+              </button>
+            </div>
+            <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={enhancedPersonalization}
+                  onChange={(event) => {
+                    setEnhancedPersonalization(event.target.checked);
+                    if (!event.target.checked) {
+                      setAllowToolUse(true);
+                    }
+                  }}
+                  className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-2 focus:ring-slate-500/20"
+                />
+                <span>
+                  <strong>Enhanced personalization</strong> — add bespoke hooks for each lead.
+                  <br />When on, AI may use additional research context and can take slightly longer.
+                </span>
+              </label>
+              <label className="flex items-start gap-2 pl-6 text-xs text-slate-500">
+                <input
+                  type="checkbox"
+                  checked={allowToolUse}
+                  disabled={!enhancedPersonalization}
+                  onChange={(event) => setAllowToolUse(event.target.checked)}
+                  className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-slate-900 focus:ring-2 focus:ring-slate-500/20"
+                />
+                <span>
+                  Allow research assistance (may incur higher AI usage). Turn off to keep copy strictly to known context.
+                </span>
+              </label>
             </div>
             <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
               Template Studio layout tools are coming soon. We&apos;ll surface design controls here once they&apos;re ready.
@@ -2469,6 +2607,17 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
                   ? `Approvals will send immediately from ${activeConnection.email}.`
                   : "Connect Gmail to approve and send without copying manually."}
               </p>
+              <label className="mt-2 flex items-start gap-2 text-xs text-slate-500">
+                <input
+                  type="checkbox"
+                  checked={bulkSendEnabled}
+                  onChange={(event) => setBulkSendEnabled(event.target.checked)}
+                  className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-slate-900 focus:ring-2 focus:ring-slate-500/20"
+                />
+                <span>
+                  Enable one-click send for all ready drafts. Review copy first—this uses the selected Gmail connection immediately.
+                </span>
+              </label>
             </div>
             <button
               type="button"
@@ -2477,6 +2626,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
                 bulkSending ||
                 !aiDrafts ||
                 aiDrafts.length === 0 ||
+                !bulkSendEnabled ||
                 !activeConnection ||
                 activeConnection.needsReauth === true
               }
@@ -2534,6 +2684,11 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
                     AI generated
                   </span>
                 </header>
+                {draft.notes ? (
+                  <p className="mt-2 text-xs text-slate-500">
+                    {draft.notes}
+                  </p>
+                ) : null}
                 <h3 className="mt-2 text-base font-semibold text-slate-900">{draft.subject}</h3>
                 <div className="mt-2 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,280px)]">
                   <p className="whitespace-pre-wrap text-sm text-slate-700">{draft.body}</p>
@@ -2645,6 +2800,14 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
           </div>
         </section>
       ) : null}
+      <TemplateChatPanel
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        messages={chatHistory}
+        onSend={handleChatSend}
+        isSending={chatLoading}
+        error={chatError}
+      />
     </main>
   );
 }

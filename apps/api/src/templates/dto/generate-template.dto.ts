@@ -1,4 +1,4 @@
-import { IsArray, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class GenerateTemplateDto {
   @IsOptional()
@@ -19,4 +19,12 @@ export class GenerateTemplateDto {
   @IsOptional()
   @IsString()
   model?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  enhancedPersonalization?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  allowToolUse?: boolean;
 }

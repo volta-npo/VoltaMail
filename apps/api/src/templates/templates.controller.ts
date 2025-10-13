@@ -30,6 +30,7 @@ import { SuggestHtmlTemplateDto } from './dto/suggest-html-template.dto.js';
 import { CreateTemplateVersionDto } from './dto/create-template-version.dto.js';
 import { UpdateTemplateVersionDto } from './dto/update-template-version.dto.js';
 import { IterateDraftsDto } from './dto/iterate-drafts.dto.js';
+import { TemplateChatDto } from './dto/template-chat.dto.js';
 
 @Controller('v1')
 export class TemplatesController {
@@ -84,6 +85,16 @@ export class TemplatesController {
     @Req() request: AuthenticatedRequest
   ): Promise<AiDraftResult[]> {
     return this.templatesService.generateAiDrafts(templateId, body, request.auth!.user);
+  }
+
+  @Post('templates/:templateId/chat')
+  @UseGuards(SessionGuard)
+  async chatWithTemplate(
+    @Param('templateId') templateId: string,
+    @Body() body: TemplateChatDto,
+    @Req() request: AuthenticatedRequest
+  ) {
+    return this.templatesService.chatWithTemplate(templateId, body, request.auth!.user);
   }
 
   @Post('templates/:templateId/send')
