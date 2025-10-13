@@ -1,8 +1,6 @@
 import 'server-only';
 import { AiConfigResponse, GmailConnectionSummary, ProjectStats } from '@email-automation/shared';
-
-const API_BASE_URL =
-  process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api';
+import { API_BASE_URL } from './config';
 
 async function apiFetch<T>(path: string, sessionToken: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {

@@ -2,12 +2,7 @@ import GoogleProvider from 'next-auth/providers/google';
 import { NextAuthOptions, Session } from 'next-auth';
 import { JWT } from 'next-auth/jwt';
 import { SessionPayload } from '@email-automation/shared';
-
-const API_BASE_URL = (() => {
-  const base =
-    process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.API_BASE_URL ?? 'http://localhost:4000/api';
-  return base.replace(/\/+$/, '');
-})();
+import { API_BASE_URL } from './config';
 
 type ExtendedToken = JWT & {
   organizationId?: string;

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Papa from "papaparse";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { API_BASE_URL } from "@/lib/config";
 
 type CanonicalField =
   | "email"
@@ -249,9 +250,7 @@ export default function LeadImportPage({ params }: LeadImportPageProps) {
       const formData = new FormData();
       formData.append("file", blob, file.name.replace(/\\.csv$/i, "") + "-normalized.csv");
 
-      const apiBase =
-        process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.API_BASE_URL ?? "http://localhost:4000/api";
-      const response = await fetch(`${apiBase}/v1/projects/${projectId}/leads/import`, {
+      const response = await fetch(`${API_BASE_URL}/v1/projects/${projectId}/leads/import`, {
         method: "POST",
         headers: {
           "x-session-token": sessionToken

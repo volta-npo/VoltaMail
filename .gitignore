@@ -28,3 +28,7 @@ prisma/migrations
 .idea
 .DS_Store
 MERGED_hq_leads_dm_ready.csv
+
+
+#Ignore cursor AI rules
+.cursor/rules/codacy.mdc

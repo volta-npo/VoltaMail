@@ -2,14 +2,27 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module.js';
+import type { NextFunction, Request, Response } from 'express';
 
 export async function createApp() {
   const app = await NestFactory.create(AppModule);
   app.use(cookieParser());
 
   const rawPrefix = (process.env.NEST_GLOBAL_PREFIX ?? 'api').trim();
-  if (rawPrefix && rawPrefix !== '/') {
-    app.setGlobalPrefix(rawPrefix.replace(/^\/+/, ''));
+  const normalizedPrefix = rawPrefix.replace(/^\/+/, '').replace(/\/+$/, '');
+  if (normalizedPrefix && normalizedPrefix !== '.') {
+    app.setGlobalPrefix(normalizedPrefix);
+
+    app.use((req: Request, _res: Response, next: NextFunction) => {
+      if (
+        typeof req.url === 'string' &&
+        req.url.startsWith('/v1') &&
+        !req.url.startsWith(`/${normalizedPrefix}/`)
+      ) {
+        req.url = `/${normalizedPrefix}${req.url}`;
+      }
+      next();
+    });
   }
 
   const defaultOrigins = [

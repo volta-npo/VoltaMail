@@ -16,6 +16,7 @@ import {
   TemplateVersionSummary
 } from "@email-automation/shared";
 import { TemplateDesigner, defaultDesignerState, TemplateDesignerState, buildHtmlFromDesigner } from "@/components/template-designer";
+import { API_BASE_URL } from "@/lib/config";
 
 type TemplatePreset = {
   id: string;
@@ -67,9 +68,6 @@ interface PersistedState {
 }
 
 const STORAGE_KEY = (projectId: string) => `templates-state-${projectId}`;
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.API_BASE_URL ?? "http://localhost:4000/api";
 
 export default function TemplatesPage({ params }: TemplatesPageProps) {
   const { data: session, status } = useSession();
