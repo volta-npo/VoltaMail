@@ -8,10 +8,18 @@ import { GmailModule } from '../gmail/gmail.module.js';
 import { TokenCipherService } from '../security/token-cipher.service.js';
 import { PrismaService } from '../prisma.service.js';
 import { AiConfigService } from '../ai/ai-config.service.js';
+import { AiClientService } from '../ai/ai-client.service.js';
 
 @Module({
   imports: [ConfigModule, AuthModule, GmailModule],
   controllers: [TemplatesController],
-  providers: [TemplatesService, ProjectAccessService, TokenCipherService, PrismaService, AiConfigService]
+  providers: [
+    TemplatesService,
+    ProjectAccessService,
+    TokenCipherService,
+    PrismaService,
+    AiConfigService,
+    AiClientService
+  ]
 })
 export class TemplatesModule {}
