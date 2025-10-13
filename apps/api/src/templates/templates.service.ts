@@ -313,7 +313,9 @@ export class TemplatesService {
     const systemPrompt = [
       'You are Volta, an outreach copywriting assistant helping refine cold email templates.',
       'You have access to the organization\'s knowledge base and recent AI drafts.',
-      'Provide concise, actionable suggestions, and show revised snippets when appropriate.'
+      'Provide concise, actionable suggestions, and show revised snippets when appropriate.',
+      'Always respond with valid JSON: {"message": string, "updates": {"subject"?: string, "body"?: string, "html"?: string|null}}.',
+      'Include the original message text in "message". Only include keys in "updates" when you have concrete replacements.'
     ].join(' ');
 
     const templateSummary = `Current template name: ${template.name}\nSubject: ${template.subject}\nBody:\n${template.body}`;
@@ -327,7 +329,7 @@ export class TemplatesService {
 
     const chatPrompt = `${conversationHistory ? `${conversationHistory}\n` : ''}User: ${dto.message}`;
 
-    const userPrompt = `Knowledge Base:\n${knowledgeBase}${researchSection}\n\nTemplate Context:\n${templateSummary}${htmlSection}\n\nConversation:\n${chatPrompt}\n\nInstructions:\n- Respond as a helpful AI teammate.\n- Offer concrete edits or suggestions.\n- If you rewrite copy, present it clearly.\n- Keep responses under 180 words unless user requests otherwise.`;
+    const userPrompt = `Knowledge Base:\n${knowledgeBase}${researchSection}\n\nTemplate Context:\n${templateSummary}${htmlSection}\n\nConversation:\n${chatPrompt}\n\nInstructions:\n- Respond as a helpful AI teammate.\n- Offer concrete edits or suggestions.\n- If you rewrite copy, supply the revised subject/body/html in the JSON "updates" object.\n- Keep responses under 180 words unless user requests otherwise.\n- Return only JSON.`;
 
     const generationConfig = await this.aiConfig.resolveGenerationConfig(user.organizationId);
 
@@ -339,9 +341,7 @@ export class TemplatesService {
       apiKey: generationConfig.apiKey
     });
 
-    return {
-      message: raw.trim()
-    };
+    return parseChatResponse(raw);
   }
 
   async sendDraft(
@@ -1139,6 +1139,45 @@ function parseAiResponse(raw: string): { subject: string; body: string; html: st
   }
 
   return { subject, body, html };
+}
+
+function parseChatResponse(raw: string): AiChatResponse {
+  const trimmed = raw.trim();
+
+  const tryParse = (value: string): AiChatResponse | null => {
+    try {
+      const parsed = JSON.parse(value) as AiChatResponse;
+      if (parsed && typeof parsed.message === 'string') {
+        return {
+          message: parsed.message,
+          updates: parsed.updates,
+          tokensApprox: parsed.tokensApprox
+        };
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  };
+
+  const direct = tryParse(trimmed);
+  if (direct) {
+    return direct;
+  }
+
+  const firstBrace = trimmed.indexOf('{');
+  const lastBrace = trimmed.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    const candidate = trimmed.slice(firstBrace, lastBrace + 1);
+    const parsed = tryParse(candidate);
+    if (parsed) {
+      return parsed;
+    }
+  }
+
+  return {
+    message: trimmed
+  };
 }
 
 function buildDraftIterationPrompt(args: {

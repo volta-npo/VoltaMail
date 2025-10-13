@@ -127,6 +127,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
   const [suggestingTemplate, setSuggestingTemplate] = useState(false);
   const [bulkSending, setBulkSending] = useState(false);
   const [bulkSendEnabled, setBulkSendEnabled] = useState(false);
+  const [previewSending, setPreviewSending] = useState(false);
   const [htmlDraft, setHtmlDraft] = useState('');
   const [activeTemplateVersionId, setActiveTemplateVersionId] = useState<string | null>(null);
   const [savingVersion, setSavingVersion] = useState(false);
@@ -908,7 +909,12 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
       }
 
       const data = (await response.json()) as RenderedLeadPreview[];
-      setPreview(data);
+      const normalized = data.map((row) => ({
+        ...row,
+        subject: row.subject.replace(/\\n/g, '\n'),
+        body: row.body.replace(/\\n/g, '\n')
+      }));
+      setPreview(normalized);
     } catch (previewError) {
       setError(previewError instanceof Error ? previewError.message : "Failed to render preview");
     }
@@ -962,6 +968,9 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
       const data = (await response.json()) as AiDraftResult[];
       const enriched = data.map((draft) => ({
         ...draft,
+        subject: draft.subject.replace(/\\n/g, '\n'),
+        body: draft.body.replace(/\\n/g, '\n'),
+        html: typeof draft.html === 'string' ? draft.html : draft.html,
         templateVersionId: draft.templateVersionId ?? activeVersion?.id ?? activeTemplateVersionId ?? undefined
       }));
 
@@ -1031,7 +1040,8 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
     }
 
     setChatError(null);
-    const nextHistory: AiChatMessage[] = [...chatHistory, { role: "user", content: message }];
+    const userMessage: AiChatMessage = { role: "user", content: message };
+    const nextHistory: AiChatMessage[] = [...chatHistory, userMessage];
     setChatHistory(nextHistory);
     setChatLoading(true);
 
@@ -1052,13 +1062,34 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
         throw new Error(await extractErrorMessage(response));
       }
 
-      const data = (await response.json()) as { message: string };
-      setChatHistory((prev) => [...prev, { role: "assistant", content: data.message.trim() }]);
+      const data = (await response.json()) as { message: string; updates?: { subject?: string; body?: string; html?: string | null } };
+      setChatHistory((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: (data.message ?? "").trim(),
+          updates: data.updates
+        }
+      ]);
     } catch (chatErr) {
       setChatError(chatErr instanceof Error ? chatErr.message : "Chat request failed");
+      setChatHistory((prev) => prev.slice(0, Math.max(prev.length - 1, 0)));
     } finally {
       setChatLoading(false);
     }
+  };
+
+  const handleApplyChatUpdates = (updates: NonNullable<AiChatMessage['updates']>) => {
+    if (updates.subject) {
+      setSubject(updates.subject);
+    }
+    if (updates.body) {
+      setBody(updates.body);
+    }
+    if (typeof updates.html === 'string') {
+      setHtmlDraft(updates.html);
+    }
+    setSuccess('Applied AI suggestions to your template.');
   };
 
   const handleGenerateAiTemplateBundle = async (options?: { designOnly?: boolean }) => {
@@ -1279,6 +1310,96 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
       await refreshConnections();
     } finally {
       setBulkSending(false);
+    }
+  };
+
+  const handleSendPreview = async () => {
+    if (!bulkSendEnabled) {
+      return;
+    }
+
+    if (!selectedId || !preview || preview.length === 0) {
+      return;
+    }
+
+    if (!activeConnection) {
+      setError("Connect a Gmail account before sending emails.");
+      return;
+    }
+
+    if (activeConnection.needsReauth) {
+      setError("Reconnect your Gmail account to refresh access before sending emails.");
+      return;
+    }
+
+    setPreviewSending(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/v1/templates/${selectedId}/send-bulk`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-session-token": sessionToken ?? ""
+        },
+        body: JSON.stringify({
+          drafts: preview.map((row) => ({
+            leadId: row.leadId,
+            subject: row.subject,
+            body: row.body,
+            html: undefined,
+            templateVersionId: activeVersion?.id ?? activeTemplateVersionId ?? undefined
+          })),
+          gmailConnectionId: selectedConnectionId || undefined
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(await extractErrorMessage(response));
+      }
+
+      const result = (await response.json()) as BulkSendResponse;
+      const sentLeads = result.results.filter((item) => item.status === 'sent');
+      const failed = result.results.filter((item) => item.status === 'failed');
+
+      if (sentLeads.length > 0) {
+        setSentLog((prev) => [
+          ...sentLeads.map((item) => {
+            const row = preview.find((d) => d.leadId === item.leadId);
+            return {
+              leadId: item.leadId,
+              email: row?.email ?? item.leadId,
+              subject: row?.subject ?? '',
+              messageId: item.messageId ?? '',
+              sentAt: item.sentAt ?? new Date().toISOString(),
+              gmailConnectionEmail: item.gmailConnectionEmail ?? (activeConnection?.email ?? '')
+            };
+          }),
+          ...prev
+        ]);
+        setSuccess(`Sent ${sentLeads.length} preview email${sentLeads.length === 1 ? '' : 's'} successfully.`);
+      }
+
+      if (failed.length > 0) {
+        const failedDetails = failed
+          .map((item) => {
+            const row = preview.find((d) => d.leadId === item.leadId);
+            const label = row ? row.email : item.leadId;
+            const reason = item.error ?? 'Unknown error';
+            return `${label} (${reason})`;
+          })
+          .join('; ');
+        setError(`Failed to send ${failed.length} preview email${failed.length === 1 ? '' : 's'}. ${failedDetails}`);
+      } else {
+        setError(null);
+      }
+    } catch (sendError) {
+      const message = sendError instanceof Error ? sendError.message : 'Failed to send preview emails';
+      setError(message);
+      await refreshConnections();
+    } finally {
+      setPreviewSending(false);
     }
   };
 
@@ -2569,10 +2690,45 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
       </section>
       {preview ? (
         <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-medium text-slate-800">Preview</h2>
-          <p className="mt-1 text-sm text-slate-600">
-            Auto-generated copy for recent leads. Adjust your template if anything looks off before sending.
-          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-medium text-slate-800">Preview</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Auto-generated copy for recent leads. Adjust your template if anything looks off before sending.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleGenerateAi(selectedLeadIds.length || 3, selectedLeadIds.length > 0 ? selectedLeadIds : undefined)}
+                disabled={generatingAi}
+                className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              >
+                {generatingAi ? "Regenerating…" : "Regenerate drafts"}
+              </button>
+              <button
+                type="button"
+                onClick={handleSendPreview}
+                disabled={
+                  previewSending ||
+                  !bulkSendEnabled ||
+                  !activeConnection ||
+                  activeConnection.needsReauth === true
+                }
+                className="inline-flex items-center justify-center rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+              >
+                {previewSending
+                  ? "Sending previews…"
+                  : !activeConnection
+                    ? "Connect Gmail"
+                    : activeConnection.needsReauth
+                      ? "Reconnect Gmail"
+                      : bulkSendEnabled
+                        ? "Approve & send from preview"
+                        : "Enable bulk send"}
+              </button>
+            </div>
+          </div>
           <div className="mt-4 overflow-x-auto rounded border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50">
@@ -2807,6 +2963,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
         onSend={handleChatSend}
         isSending={chatLoading}
         error={chatError}
+        onApplyUpdate={handleApplyChatUpdates}
       />
     </main>
   );

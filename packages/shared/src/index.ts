@@ -179,10 +179,20 @@ export type AiChatRole = 'user' | 'assistant';
 export interface AiChatMessage {
   role: AiChatRole;
   content: string;
+  updates?: {
+    subject?: string;
+    body?: string;
+    html?: string | null;
+  };
 }
 
 export interface AiChatResponse {
   message: string;
+  updates?: {
+    subject?: string;
+    body?: string;
+    html?: string | null;
+  };
   tokensApprox?: number;
 }
 

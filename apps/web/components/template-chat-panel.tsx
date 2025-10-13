@@ -10,9 +10,10 @@ interface TemplateChatPanelProps {
   onSend: (message: string) => void;
   isSending: boolean;
   error?: string | null;
+  onApplyUpdate?: (updates: NonNullable<AiChatMessage['updates']>) => void;
 }
 
-export function TemplateChatPanel({ open, onClose, messages, onSend, isSending, error }: TemplateChatPanelProps) {
+export function TemplateChatPanel({ open, onClose, messages, onSend, isSending, error, onApplyUpdate }: TemplateChatPanelProps) {
   const formRef = useRef<HTMLFormElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -68,6 +69,32 @@ export function TemplateChatPanel({ open, onClose, messages, onSend, isSending, 
                   }`}
                 >
                   {message.content}
+                  {message.role === "assistant" && message.updates ? (
+                    <div className="mt-2 space-y-1 border-t border-slate-200 pt-2 text-xs text-slate-600">
+                      <p className="font-semibold text-slate-700">Suggested updates</p>
+                      {message.updates.subject ? (
+                        <p><span className="font-medium text-slate-700">Subject:</span> {message.updates.subject}</p>
+                      ) : null}
+                      {message.updates.body ? (
+                        <p className="whitespace-pre-wrap"><span className="font-medium text-slate-700">Body:</span> {'\n'}{message.updates.body}</p>
+                      ) : null}
+                      {message.updates.html ? (
+                        <details className="rounded border border-slate-200 bg-slate-100 p-2">
+                          <summary className="cursor-pointer text-slate-600">HTML preview</summary>
+                          <iframe className="mt-2 h-32 w-full rounded border border-slate-200 bg-white" srcDoc={message.updates.html} />
+                        </details>
+                      ) : null}
+                      {onApplyUpdate ? (
+                        <button
+                          type="button"
+                          onClick={() => onApplyUpdate(message.updates!)}
+                          className="inline-flex items-center rounded border border-emerald-500 px-2 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-50"
+                        >
+                          Apply these changes
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             ))
