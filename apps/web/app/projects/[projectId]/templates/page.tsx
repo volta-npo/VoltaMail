@@ -615,6 +615,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
   };
 
   const selectedLeadCount = selectedLeadIds.length;
+  const hasPreview = Array.isArray(preview) && preview.length > 0;
 
   const activeConnection = useMemo(() => {
     if (gmailConnections.length === 0) {
@@ -2478,37 +2479,6 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
                 Chat with AI
               </button>
             </div>
-            <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-              <label className="flex items-start gap-2">
-                <input
-                  type="checkbox"
-                  checked={enhancedPersonalization}
-                  onChange={(event) => {
-                    setEnhancedPersonalization(event.target.checked);
-                    if (!event.target.checked) {
-                      setAllowToolUse(true);
-                    }
-                  }}
-                  className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-2 focus:ring-slate-500/20"
-                />
-                <span>
-                  <strong>Enhanced personalization</strong> — add bespoke hooks for each lead.
-                  <br />When on, AI may use additional research context and can take slightly longer.
-                </span>
-              </label>
-              <label className="flex items-start gap-2 pl-6 text-xs text-slate-500">
-                <input
-                  type="checkbox"
-                  checked={allowToolUse}
-                  disabled={!enhancedPersonalization}
-                  onChange={(event) => setAllowToolUse(event.target.checked)}
-                  className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-slate-900 focus:ring-2 focus:ring-slate-500/20"
-                />
-                <span>
-                  Allow research assistance (may incur higher AI usage). Turn off to keep copy strictly to known context.
-                </span>
-              </label>
-            </div>
             <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
               Template Studio layout tools are coming soon. We&apos;ll surface design controls here once they&apos;re ready.
             </div>
@@ -2758,48 +2728,88 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
           </div>
         </div>
       </section>
-      {preview ? (
-        <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-lg font-medium text-slate-800">Preview</h2>
-              <p className="mt-1 text-sm text-slate-600">
-                Auto-generated copy for recent leads. Adjust your template if anything looks off before sending.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => handleGenerateAi(selectedLeadIds.length || 3, selectedLeadIds.length > 0 ? selectedLeadIds : undefined)}
-                disabled={generatingAi}
-                className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-              >
-                {generatingAi ? "Regenerating…" : "Regenerate drafts"}
-              </button>
-              <button
-                type="button"
-                onClick={handleSendPreview}
-                disabled={
-                  previewSending ||
-                  !bulkSendEnabled ||
-                  !activeConnection ||
-                  activeConnection.needsReauth === true
-                }
-                className="inline-flex items-center justify-center rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
-              >
-                {previewSending
-                  ? "Sending previews…"
-                  : !activeConnection
-                    ? "Connect Gmail"
-                    : activeConnection.needsReauth
-                      ? "Reconnect Gmail"
-                      : bulkSendEnabled
-                        ? "Approve & send from preview"
-                        : "Enable bulk send"}
-              </button>
-            </div>
+      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-medium text-slate-800">Preview</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Auto-generated copy for recent leads. Adjust your template if anything looks off before sending.
+            </p>
           </div>
-          <div className="mt-4 overflow-x-auto rounded border border-slate-200">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                handleGenerateAi(
+                  selectedLeadIds.length || 3,
+                  selectedLeadIds.length > 0 ? selectedLeadIds : undefined
+                )
+              }
+              disabled={generatingAi}
+              className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+            >
+              {generatingAi ? 'Regenerating…' : 'Regenerate drafts'}
+            </button>
+            <button
+              type="button"
+              onClick={handleSendPreview}
+              disabled={
+                !hasPreview ||
+                previewSending ||
+                !bulkSendEnabled ||
+                !activeConnection ||
+                activeConnection.needsReauth === true
+              }
+              className="inline-flex items-center justify-center rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+            >
+              {previewSending
+                ? 'Sending previews…'
+                : !activeConnection
+                  ? 'Connect Gmail'
+                  : activeConnection.needsReauth
+                    ? 'Reconnect Gmail'
+                    : !hasPreview
+                      ? 'Generate previews first'
+                      : bulkSendEnabled
+                        ? 'Approve & send from preview'
+                        : 'Enable bulk send'}
+            </button>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+          <label className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              checked={enhancedPersonalization}
+              onChange={(event) => {
+                setEnhancedPersonalization(event.target.checked);
+                if (!event.target.checked) {
+                  setAllowToolUse(true);
+                }
+              }}
+              className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-2 focus:ring-slate-500/20"
+            />
+            <span>
+              <strong>Enhanced personalization</strong> — add bespoke hooks for each lead.
+              <br />
+              When on, AI may use additional research context and can take slightly longer.
+            </span>
+          </label>
+          <label className="flex items-start gap-2 pl-6 text-xs text-slate-500">
+            <input
+              type="checkbox"
+              checked={allowToolUse}
+              disabled={!enhancedPersonalization}
+              onChange={(event) => setAllowToolUse(event.target.checked)}
+              className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-slate-900 focus:ring-2 focus:ring-slate-500/20"
+            />
+            <span>
+              Allow research assistance (may incur higher AI usage). Turn off to keep copy strictly to known context.
+            </span>
+          </label>
+        </div>
+        {hasPreview ? (
+          <div className="mt-6 overflow-x-auto rounded border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50">
                 <tr>
@@ -2810,13 +2820,15 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
                 </tr>
               </thead>
               <tbody>
-                {preview.map((row) => (
+                {(preview ?? []).map((row) => (
                   <tr key={row.leadId} className="odd:bg-white even:bg-slate-50">
                     <td className="px-3 py-2 text-slate-600">
                       <button
                         type="button"
                         onClick={() => handleSendPreviewRow(row)}
-                        disabled={previewSendingId === row.leadId || previewSending || !bulkSendEnabled}
+                        disabled={
+                          previewSendingId === row.leadId || previewSending || !bulkSendEnabled
+                        }
                         className="rounded-full border border-slate-300 p-2 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-60"
                         aria-label={`Send email to ${row.email}`}
                       >
@@ -2831,8 +2843,12 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
               </tbody>
             </table>
           </div>
-        </section>
-      ) : null}
+        ) : (
+          <div className="mt-6 rounded border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+            Generate previews to review personalized drafts and send from this panel. Use the lead selector above to choose who gets drafted first.
+          </div>
+        )}
+      </section>
 
       {aiDrafts ? (
         <section className="rounded-lg border border-emerald-200 bg-white p-6 shadow-sm">
