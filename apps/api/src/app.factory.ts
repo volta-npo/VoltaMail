@@ -113,6 +113,16 @@ export async function createApp() {
         )
       : null;
 
+  const allowedOriginList = allowAllOrigins ? ['*'] : [...allowedOrigins];
+
+  if (allowAllOrigins) {
+    // eslint-disable-next-line no-console
+    console.log('[CORS] Allowing all origins (wildcard).');
+  } else {
+    // eslint-disable-next-line no-console
+    console.log('[CORS] Allowlist:', allowedOriginList);
+  }
+
   app.enableCors({
     origin: allowAllOrigins
       ? true
@@ -133,6 +143,8 @@ export async function createApp() {
             return;
           }
 
+          // eslint-disable-next-line no-console
+          console.warn('[CORS] Blocked origin', origin);
           callback(new Error(`Origin ${origin} not allowed by CORS`));
         },
     credentials: true
