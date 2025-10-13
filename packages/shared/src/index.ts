@@ -163,6 +163,16 @@ export interface AiConfigResponse {
   providers: Record<AiProvider, AiProviderSettings>;
 }
 
+export interface KnowledgeSource {
+  id: string;
+  type: 'website' | 'googleDoc' | 'upload';
+  url?: string | null;
+  title?: string | null;
+  summary: string;
+  snippet: string;
+  createdAt: string;
+}
+
 export interface DraftToSend {
   leadId: string;
   subject: string;

@@ -1,10 +1,25 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, Put, Req, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Req,
+  UseGuards
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service.js';
 import { SessionGuard } from '../auth/session.guard.js';
 import { AuthenticatedRequest } from '../auth/authenticated-request.js';
-import { IsIn, IsString, IsUrl, validateSync } from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUrl, validateSync } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
-import { ProjectStats } from '@email-automation/shared';
+import { ProjectStats, KnowledgeSource as SharedKnowledgeSource } from '@email-automation/shared';
+import { AiConfigService } from '../ai/ai-config.service.js';
+import { AiClientService } from '../ai/ai-client.service.js';
+import { randomUUID } from 'node:crypto';
+import { Prisma } from '@email-automation/database';
 
 class UpdateKnowledgeBaseDto {
   @IsString()
@@ -12,26 +27,95 @@ class UpdateKnowledgeBaseDto {
 }
 
 class CollectKnowledgeSourceDto {
-  @IsIn(['website', 'googleDoc'])
-  type!: 'website' | 'googleDoc';
+  @IsIn(['website', 'googleDoc', 'upload'])
+  type!: 'website' | 'googleDoc' | 'upload';
 
-  @IsString()
+  @IsOptional()
   @IsUrl({ protocols: ['https'] })
-  url!: string;
+  url?: string;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  content?: string;
 }
+
+class DeleteKnowledgeBaseDto {
+  @IsString()
+  confirmation!: string;
+}
+
+type KnowledgeSource = SharedKnowledgeSource;
 
 @Controller('v1/projects/:projectId')
 export class ProjectSettingsController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aiConfig: AiConfigService,
+    private readonly aiClient: AiClientService
+  ) {}
 
-  private buildBrandingJson(existing: unknown, knowledgeBase: string) {
+  private readBranding(branding: unknown): { knowledgeBase: string; sources: KnowledgeSource[] } {
+    if (!branding || typeof branding !== 'object' || Array.isArray(branding)) {
+      return { knowledgeBase: '', sources: [] };
+    }
+    const record = branding as Record<string, unknown>;
+    const knowledgeBase = typeof record.knowledgeBase === 'string' ? record.knowledgeBase : '';
+    const sourcesRaw = Array.isArray(record.knowledgeSources) ? record.knowledgeSources : [];
+    const sources: KnowledgeSource[] = [];
+    for (const item of sourcesRaw) {
+      if (!item || typeof item !== 'object') {
+        continue;
+      }
+      const obj = item as Record<string, unknown>;
+      const id = typeof obj.id === 'string' ? obj.id : randomUUID();
+      const type: KnowledgeSource['type'] =
+        obj.type === 'website' || obj.type === 'googleDoc' || obj.type === 'upload'
+          ? obj.type
+          : 'upload';
+      const summary = typeof obj.summary === 'string' ? obj.summary : '';
+      const snippet = typeof obj.snippet === 'string' ? obj.snippet : '';
+      const createdAt = typeof obj.createdAt === 'string' ? obj.createdAt : new Date().toISOString();
+      const url = typeof obj.url === 'string' ? obj.url : undefined;
+      const title = typeof obj.title === 'string' ? obj.title : undefined;
+      sources.push({
+        id,
+        type,
+        url: url ?? undefined,
+        title: title ?? undefined,
+        summary,
+        snippet,
+        createdAt
+      });
+    }
+    return { knowledgeBase, sources };
+  }
+
+  private buildBrandingJson(
+    existing: unknown,
+    knowledgeBase: string,
+    sources: KnowledgeSource[]
+  ) {
     const normalized =
       existing && typeof existing === 'object' && !Array.isArray(existing)
         ? (existing as Record<string, unknown>)
         : {};
+    const serializedSources: Prisma.InputJsonValue = sources.map((source) => ({
+      id: source.id,
+      type: source.type,
+      url: source.url ?? null,
+      title: source.title ?? null,
+      summary: source.summary,
+      snippet: source.snippet,
+      createdAt: source.createdAt
+    }));
     return {
       ...normalized,
-      knowledgeBase
+      knowledgeBase,
+      knowledgeSources: serializedSources
     };
   }
 
@@ -50,16 +134,11 @@ export class ProjectSettingsController {
     });
 
     if (!project || project.organizationId !== request.auth!.user.organizationId) {
-      return { knowledgeBase: '' };
+      return { knowledgeBase: '', sources: [] as KnowledgeSource[] };
     }
 
-    let knowledgeBase = '';
-    if (project.brandingJson && typeof project.brandingJson === 'object') {
-      const data = project.brandingJson as Record<string, unknown>;
-      knowledgeBase = typeof data.knowledgeBase === 'string' ? data.knowledgeBase : '';
-    }
-
-    return { knowledgeBase };
+    const branding = this.readBranding(project.brandingJson);
+    return branding;
   }
 
   @Put('knowledge-base')
@@ -81,14 +160,21 @@ export class ProjectSettingsController {
       return { success: false };
     }
 
+    const existing = this.readBranding(project.brandingJson);
+    const updatedBranding = this.buildBrandingJson(project.brandingJson, body.knowledgeBase, existing.sources);
+
     await this.prisma.project.update({
       where: { id: projectId },
       data: {
-        brandingJson: this.buildBrandingJson(project.brandingJson, body.knowledgeBase)
+        brandingJson: updatedBranding
       }
     });
 
-    return { success: true };
+    return {
+      success: true,
+      knowledgeBase: body.knowledgeBase,
+      sources: existing.sources
+    };
   }
 
   @Post('knowledge-base/source')
@@ -107,7 +193,8 @@ export class ProjectSettingsController {
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
       select: {
-        organizationId: true
+        organizationId: true,
+        brandingJson: true
       }
     });
 
@@ -115,21 +202,164 @@ export class ProjectSettingsController {
       throw new BadRequestException('Project not found or access denied.');
     }
 
-    let fragment: string;
-    if (dto.type === 'website') {
-      fragment = await this.fetchWebsiteContent(dto.url);
-    } else {
-      fragment = await this.fetchGoogleDocContent(dto.url);
-    }
+    const branding = this.readBranding(project.brandingJson);
+
+    const { fragment, title, sourceUrl } = await this.resolveSourceContent(dto);
 
     const normalized = this.normalizeFragment(fragment);
     if (!normalized) {
       throw new BadRequestException('Unable to extract meaningful content from the provided source.');
     }
 
-    return {
-      fragment: normalized
+    const snippet = this.createSnippet(fragment);
+
+    let summary = '';
+    let updatedKnowledgeBase = branding.knowledgeBase;
+
+    try {
+      const generationConfig = await this.aiConfig.resolveGenerationConfig(project.organizationId);
+      const systemPrompt =
+        'You are a marketing enablement assistant. Summarize the key insights from the new content and blend them into the existing brand brief. Keep it concise, bullet-oriented, and focused on differentiation, proof, tone, and offers.';
+      const userPrompt = `Existing brand knowledge:\n${branding.knowledgeBase || 'None yet'}\n\nNew source (${title}):\n${normalized.slice(
+        0,
+        6000
+      )}\n\nOutput Requirements:\n- Return a refreshed brand knowledge section no longer than 600 words.\n- Use short paragraphs or bullet points.\n- Incorporate only signal, discard filler and navigational copy.\n- If existing knowledge is empty, author a fresh summary.`;
+      const response = await this.aiClient.generate({
+        provider: generationConfig.provider,
+        model: generationConfig.model,
+        apiKey: generationConfig.apiKey,
+        systemPrompt,
+        userPrompt
+      });
+      summary = response.trim();
+      updatedKnowledgeBase = summary;
+    } catch {
+      summary = this.createSnippet(normalized, 800);
+      const combined = branding.knowledgeBase
+        ? `${branding.knowledgeBase}\n\n${summary}`
+        : summary;
+      updatedKnowledgeBase = combined.length > 6000 ? combined.slice(0, 6000) : combined;
+    }
+
+    const source: KnowledgeSource = {
+      id: randomUUID(),
+      type: dto.type,
+      url: sourceUrl ?? undefined,
+      title: title ?? undefined,
+      snippet,
+      summary,
+      createdAt: new Date().toISOString()
     };
+
+    const nextSources = [...branding.sources, source];
+    const updatedBranding = this.buildBrandingJson(project.brandingJson, updatedKnowledgeBase, nextSources);
+
+    await this.prisma.project.update({
+      where: { id: projectId },
+      data: {
+        brandingJson: updatedBranding
+      }
+    });
+
+    return {
+      knowledgeBase: updatedKnowledgeBase,
+      source
+    };
+  }
+
+  @Delete('knowledge-base')
+  @UseGuards(SessionGuard)
+  async deleteKnowledgeBase(
+    @Param('projectId') projectId: string,
+    @Body() body: DeleteKnowledgeBaseDto,
+    @Req() request: AuthenticatedRequest
+  ) {
+    const dto = plainToInstance(DeleteKnowledgeBaseDto, body);
+    const validation = validateSync(dto, { whitelist: true, forbidNonWhitelisted: true });
+    if (validation.length > 0) {
+      throw new BadRequestException('Invalid confirmation payload.');
+    }
+
+    const requiredPhrase = 'I am sure I want to delete my knowledge base';
+    if (dto.confirmation.trim() !== requiredPhrase) {
+      throw new BadRequestException('Confirmation phrase does not match.');
+    }
+
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: {
+        organizationId: true,
+        brandingJson: true
+      }
+    });
+
+    if (!project || project.organizationId !== request.auth!.user.organizationId) {
+      throw new BadRequestException('Project not found or access denied.');
+    }
+
+    const updatedBranding = this.buildBrandingJson(project.brandingJson, '', []);
+
+    await this.prisma.project.update({
+      where: { id: projectId },
+      data: {
+        brandingJson: updatedBranding
+      }
+    });
+
+    return {
+      success: true,
+      knowledgeBase: '',
+      sources: [] as KnowledgeSource[]
+    };
+  }
+
+  private async resolveSourceContent(dto: CollectKnowledgeSourceDto): Promise<{
+    fragment: string;
+    title: string;
+    sourceUrl?: string | null;
+  }> {
+    if (dto.type === 'upload') {
+      if (!dto.content || dto.content.trim().length === 0) {
+        throw new BadRequestException('Uploaded document is empty.');
+      }
+      const title = dto.title?.trim() || 'Uploaded document';
+      const content = dto.content.length > 20000 ? dto.content.slice(0, 20000) : dto.content;
+      return {
+        fragment: content,
+        title,
+        sourceUrl: null
+      };
+    }
+
+    if (!dto.url) {
+      throw new BadRequestException('A URL is required for website and Google Doc sources.');
+    }
+
+    if (dto.type === 'website') {
+      const html = await this.fetchWebsiteContent(dto.url);
+      const fragment = html.length > 20000 ? html.slice(0, 20000) : html;
+      return {
+        fragment,
+        title: dto.title?.trim() || dto.url,
+        sourceUrl: dto.url
+      };
+    }
+
+    const doc = await this.fetchGoogleDocContent(dto.url);
+    const trimmed = doc.length > 20000 ? doc.slice(0, 20000) : doc;
+    return {
+      fragment: trimmed,
+      title: dto.title?.trim() || dto.url,
+      sourceUrl: dto.url
+    };
+  }
+
+  private createSnippet(fragment: string, maxLength = 400): string {
+    const snippet = fragment.replace(/\s+/g, ' ').trim();
+    if (snippet.length <= maxLength) {
+      return snippet;
+    }
+    return `${snippet.slice(0, maxLength)}…`;
   }
 
   @Get('stats')

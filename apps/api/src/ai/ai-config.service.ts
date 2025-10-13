@@ -110,7 +110,7 @@ export class AiConfigService {
     const envKey = this.getEnvKey(provider) ?? null;
     const apiKey = decrypted ?? envKey;
 
-    const model = stored?.model ?? DEFAULT_MODELS[provider];
+    const model = this.normalizeModel(provider, stored?.model);
 
     return {
       apiKey,
@@ -155,9 +155,8 @@ export class AiConfigService {
       );
     }
 
-    const model = (requestedModel && requestedModel.trim().length > 0)
-      ? requestedModel.trim()
-      : providerSecrets.model ?? DEFAULT_MODELS[provider];
+    const requested = requestedModel?.trim();
+    const model = this.normalizeModel(provider, requested || providerSecrets.model);
 
     return {
       provider,
@@ -186,5 +185,17 @@ export class AiConfigService {
       defaultProvider: secrets.defaultProvider,
       providers
     };
+  }
+
+  private normalizeModel(provider: Provider, model?: string | null): string {
+    const fallback = DEFAULT_MODELS[provider];
+    if (!model || model.trim().length === 0) {
+      return fallback;
+    }
+    const trimmed = model.trim();
+    if (provider === 'openrouter') {
+      return trimmed.replace(/^openrouter\//i, '') || fallback;
+    }
+    return trimmed;
   }
 }

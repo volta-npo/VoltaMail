@@ -10,6 +10,7 @@ import { OrganizationSettingsController } from './organizations/organization-set
 import { TokenCipherService } from './security/token-cipher.service.js';
 import { PrismaService } from './prisma.service.js';
 import { AiConfigService } from './ai/ai-config.service.js';
+import { AiClientService } from './ai/ai-client.service.js';
 
 @Module({
   imports: [
@@ -22,6 +23,6 @@ import { AiConfigService } from './ai/ai-config.service.js';
     TemplatesModule
   ],
   controllers: [HealthController, ProjectSettingsController, OrganizationSettingsController],
-  providers: [TokenCipherService, PrismaService, AiConfigService]
+  providers: [TokenCipherService, PrismaService, AiConfigService, AiClientService]
 })
 export class AppModule {}

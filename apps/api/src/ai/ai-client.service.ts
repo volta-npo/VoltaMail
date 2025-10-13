@@ -74,7 +74,7 @@ export class AiClientService {
         'X-Title': 'VoltaMail'
       },
       body: JSON.stringify({
-        model: options.model ?? DEFAULT_MODELS.openrouter,
+        model: this.normalizeOpenRouterModel(options.model),
         messages: [
           { role: 'system', content: options.systemPrompt },
           { role: 'user', content: options.userPrompt }
@@ -175,5 +175,10 @@ export class AiClientService {
       throw new InternalServerErrorException('Gemini returned an empty response.');
     }
     return content as string;
+  }
+
+  private normalizeOpenRouterModel(model?: string): string {
+    const candidate = model ?? DEFAULT_MODELS.openrouter;
+    return candidate.replace(/^openrouter\//i, '');
   }
 }

@@ -13,7 +13,8 @@ import {
   SendDraftResponse,
   AiTemplateSuggestion,
   BulkSendResponse,
-  TemplateVersionSummary
+  TemplateVersionSummary,
+  KnowledgeSource
 } from "@email-automation/shared";
 import { TemplateDesigner, defaultDesignerState, TemplateDesignerState, buildHtmlFromDesigner } from "@/components/template-designer";
 import { API_BASE_URL } from "@/lib/config";
@@ -95,6 +96,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
   const [success, setSuccess] = useState<string | null>(null);
   const [knowledgeBase, setKnowledgeBase] = useState('');
   const [knowledgeSaving, setKnowledgeSaving] = useState(false);
+  const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>([]);
   const [knowledgeUploadInfo, setKnowledgeUploadInfo] = useState<string | null>(null);
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [websiteLoading, setWebsiteLoading] = useState(false);
@@ -102,6 +104,9 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
   const [googleDocUrl, setGoogleDocUrl] = useState('');
   const [googleDocLoading, setGoogleDocLoading] = useState(false);
   const [googleDocError, setGoogleDocError] = useState<string | null>(null);
+  const [deleteIntent, setDeleteIntent] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const deletePhrase = 'I am sure I want to delete my knowledge base';
   const [gmailConnections, setGmailConnections] = useState<GmailConnectionSummary[]>([]);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string>('');
   const [sendingDraftId, setSendingDraftId] = useState<string | null>(null);
@@ -403,10 +408,16 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
           return;
         }
 
-        const data = (await response.json()) as { knowledgeBase?: string };
+        const data = (await response.json()) as {
+          knowledgeBase?: string;
+          sources?: KnowledgeSource[];
+        };
         const serverKnowledge = data.knowledgeBase ?? "";
         if (!persistedRef.current || persistedRef.current.knowledgeBase === undefined) {
           setKnowledgeBase((prev) => (prev && prev.trim().length > 0 ? prev : serverKnowledge));
+        }
+        if (Array.isArray(data.sources)) {
+          setKnowledgeSources(data.sources);
         }
       } catch {
         // ignore
@@ -592,6 +603,35 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
     setActiveTemplateVersionId(null);
     setSuccess(`Loaded the ${preset.name} preset. Tweak the copy or ask AI to refine it.`);
   };
+  const ingestKnowledgeSource = async (payload: {
+    type: 'website' | 'googleDoc' | 'upload';
+    url?: string;
+    title?: string;
+    content?: string;
+  }) => {
+    if (!sessionToken) {
+      throw new Error('Missing session. Please refresh and try again.');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/v1/projects/${projectId}/knowledge-base/source`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-session-token': sessionToken
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response));
+    }
+
+    const data = (await response.json()) as { knowledgeBase: string; source: KnowledgeSource };
+    setKnowledgeBase(data.knowledgeBase);
+    setKnowledgeSources((prev) => [...prev, data.source]);
+    return data;
+  };
+
   const handleKnowledgeSave = async () => {
     if (!sessionToken) return;
     setKnowledgeSaving(true);
@@ -609,6 +649,16 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
       if (!response.ok) {
         throw new Error(await extractErrorMessage(response));
       }
+      const data = (await response.json()) as {
+        knowledgeBase?: string;
+        sources?: KnowledgeSource[];
+      };
+      if (typeof data.knowledgeBase === "string") {
+        setKnowledgeBase(data.knowledgeBase);
+      }
+      if (Array.isArray(data.sources)) {
+        setKnowledgeSources(data.sources);
+      }
       setSuccess("Brand context saved.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save knowledge base");
@@ -625,32 +675,32 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
       reader.readAsText(file);
     });
 
-  const handleKnowledgeFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleKnowledgeFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files ? Array.from(event.target.files) : [];
     if (files.length === 0) return;
 
     setError(null);
+    setSuccess(null);
     setKnowledgeUploadInfo(null);
 
-    Promise.all(
-      files.map(async (file) => ({ name: file.name, content: await readFileAsText(file) }))
-    )
-      .then((items) => {
-        const combined = items
-          .map((item) => `# ${item.name}\n${item.content}`)
-          .join('\n\n');
-        setKnowledgeBase((prev) =>
-          prev && prev.trim().length > 0 ? `${prev}\n\n${combined}` : combined
-        );
-        setKnowledgeUploadInfo(`Added ${items.length} document${items.length > 1 ? 's' : ''}.`);
-        setSuccess(`Loaded ${items.length} knowledge source${items.length > 1 ? 's' : ''}.`);
-      })
-      .catch(() => {
-        setError('Failed to read one of the uploaded documents.');
-      })
-      .finally(() => {
-        event.target.value = '';
-      });
+    try {
+      let processed = 0;
+      for (const file of files) {
+        const content = await readFileAsText(file);
+        await ingestKnowledgeSource({
+          type: 'upload',
+          title: file.name,
+          content
+        });
+        processed += 1;
+      }
+      setKnowledgeUploadInfo(`Added ${processed} document${processed > 1 ? 's' : ''}.`);
+      setSuccess(`Processed ${processed} knowledge source${processed > 1 ? 's' : ''}.`);
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : 'Failed to import document.');
+    } finally {
+      event.target.value = '';
+    }
   };
 
   const handleWebsiteScrape = async () => {
@@ -665,27 +715,12 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
     setWebsiteError(null);
     setError(null);
     setSuccess(null);
+    setKnowledgeUploadInfo(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/v1/projects/${projectId}/knowledge-base/source`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-session-token': sessionToken
-        },
-        body: JSON.stringify({ type: 'website', url: trimmed })
-      });
-
-      if (!response.ok) {
-        throw new Error(await extractErrorMessage(response));
-      }
-
-      const payload = (await response.json()) as { fragment: string };
-      setKnowledgeBase((prev) =>
-        prev && prev.trim().length > 0 ? `${prev}\n\n${payload.fragment}` : payload.fragment
-      );
+      await ingestKnowledgeSource({ type: 'website', url: trimmed });
       setWebsiteUrl('');
-      setSuccess('Website content added to knowledge base.');
+      setSuccess('Website content summarized and added.');
     } catch (scrapeError) {
       setWebsiteError(
         scrapeError instanceof Error ? scrapeError.message : 'Failed to scrape website content.'
@@ -707,27 +742,12 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
     setGoogleDocError(null);
     setError(null);
     setSuccess(null);
+    setKnowledgeUploadInfo(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/v1/projects/${projectId}/knowledge-base/source`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-session-token': sessionToken
-        },
-        body: JSON.stringify({ type: 'googleDoc', url: trimmed })
-      });
-
-      if (!response.ok) {
-        throw new Error(await extractErrorMessage(response));
-      }
-
-      const payload = (await response.json()) as { fragment: string };
-      setKnowledgeBase((prev) =>
-        prev && prev.trim().length > 0 ? `${prev}\n\n${payload.fragment}` : payload.fragment
-      );
+      await ingestKnowledgeSource({ type: 'googleDoc', url: trimmed });
       setGoogleDocUrl('');
-      setSuccess('Linked Google Doc content added.');
+      setSuccess('Linked Google Doc summarized and added.');
     } catch (docError) {
       setGoogleDocError(
         docError instanceof Error ? docError.message : 'Failed to import Google Doc content.'
@@ -1675,12 +1695,62 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
               </div>
             </div>
           </div>
+          {knowledgeSources.length > 0 ? (
+            <div className="rounded border border-slate-200 bg-slate-50 p-4">
+              <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                Linked sources
+              </h4>
+              <p className="mt-1 text-xs text-slate-600">
+                We store summaries for quick drafting and keep the full text behind the scenes for deeper RAG use.
+              </p>
+              <ul className="mt-3 space-y-3 text-sm">
+                {knowledgeSources
+                  .slice()
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .map((source) => (
+                    <li key={source.id} className="rounded border border-slate-200 bg-white p-3">
+                      <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          {source.type === 'website'
+                            ? 'Website'
+                            : source.type === 'googleDoc'
+                            ? 'Google Doc'
+                            : 'Uploaded file'}
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          Added {new Date(source.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm font-medium text-slate-800">
+                        {source.title ?? source.url ?? 'Untitled source'}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-600">
+                        {source.summary}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {source.snippet}
+                      </p>
+                      {source.url ? (
+                        <a
+                          href={source.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-2 inline-flex text-xs font-medium text-slate-500 underline"
+                        >
+                          Open source ↗
+                        </a>
+                      ) : null}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ) : null}
           <div className="flex flex-col gap-2 border-t border-slate-200 pt-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Step 3 • Save &amp; continue</h3>
               <p className="text-sm text-slate-600">Review the text above, make edits, then lock it in.</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2">
               <button
                 type="button"
                 onClick={handleKnowledgeSave}
@@ -1689,8 +1759,75 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
               >
                 {knowledgeSaving ? 'Saving…' : 'Save knowledge base'}
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteIntent((prev) => !prev);
+                  setDeleteConfirmText('');
+                }}
+                className="inline-flex items-center justify-center rounded border border-rose-300 px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50"
+              >
+                Delete knowledge base
+              </button>
             </div>
           </div>
+          {deleteIntent ? (
+            <div className="mt-3 rounded border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+              <p>
+                This will clear the summary and disconnect the linked sources from future drafting. Type
+                <strong className="mx-1">{deletePhrase}</strong> to confirm.
+              </p>
+              <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-center">
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(event) => setDeleteConfirmText(event.target.value)}
+                  className="flex-1 rounded border border-rose-300 px-3 py-2 text-sm focus:border-rose-500 focus:outline-none"
+                  placeholder={deletePhrase}
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!sessionToken) {
+                      setError('Missing session. Please refresh and try again.');
+                      return;
+                    }
+                    if (deleteConfirmText.trim() !== deletePhrase) {
+                      setError('Confirmation phrase does not match.');
+                      return;
+                    }
+                    try {
+                      const response = await fetch(`${API_BASE_URL}/v1/projects/${projectId}/knowledge-base`, {
+                        method: 'DELETE',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'x-session-token': sessionToken ?? ''
+                        },
+                        body: JSON.stringify({ confirmation: deletePhrase })
+                      });
+                      if (!response.ok) {
+                        throw new Error(await extractErrorMessage(response));
+                      }
+                      const data = (await response.json()) as {
+                        knowledgeBase?: string;
+                        sources?: KnowledgeSource[];
+                      };
+                      setKnowledgeBase(data.knowledgeBase ?? '');
+                      setKnowledgeSources(Array.isArray(data.sources) ? data.sources : []);
+                      setSuccess('Knowledge base cleared.');
+                      setDeleteIntent(false);
+                      setDeleteConfirmText('');
+                    } catch (deleteError) {
+                      setError(deleteError instanceof Error ? deleteError.message : 'Failed to delete knowledge base.');
+                    }
+                  }}
+                  className="inline-flex items-center justify-center rounded bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700"
+                >
+                  Confirm deletion
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </section>
 
