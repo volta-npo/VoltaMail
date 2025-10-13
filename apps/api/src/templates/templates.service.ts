@@ -28,7 +28,7 @@ import {
 import { renderTemplate } from './template-renderer.js';
 import { AiClientService } from '../ai/ai-client.service.js';
 import { GmailService } from '../gmail/gmail.service.js';
-import { TokenCipherService } from '../security/token-cipher.service.js';
+import { AiConfigService } from '../ai/ai-config.service.js';
 
 @Injectable()
 export class TemplatesService {
@@ -37,7 +37,7 @@ export class TemplatesService {
     private readonly projectAccess: ProjectAccessService,
     private readonly aiClient: AiClientService,
     private readonly gmailService: GmailService,
-    private readonly tokenCipher: TokenCipherService
+    private readonly aiConfig: AiConfigService
   ) {}
 
   async listTemplates(projectId: string, user: AuthenticatedUser): Promise<TemplateSummary[]> {
@@ -219,6 +219,12 @@ export class TemplatesService {
     const baseTextTemplate = activeVersion?.textContent ?? template.body;
     const baseHtmlTemplate = activeVersion?.htmlContent ?? null;
 
+    const generationConfig = await this.aiConfig.resolveGenerationConfig(
+      user.organizationId,
+      dto.provider,
+      dto.model
+    );
+
     const results: AiDraftResult[] = [];
     for (const lead of leads) {
       const systemPrompt =
@@ -232,9 +238,11 @@ export class TemplatesService {
       });
 
       const raw = await this.aiClient.generate({
-        provider: dto.provider ?? 'openrouter',
+        provider: generationConfig.provider,
         systemPrompt,
-        userPrompt
+        userPrompt,
+        model: generationConfig.model,
+        apiKey: generationConfig.apiKey
       });
 
       const { subject, body, html } = parseAiResponse(raw);
@@ -246,7 +254,7 @@ export class TemplatesService {
         body,
         html,
         templateVersionId: activeVersion?.id ?? undefined,
-        provider: dto.provider ?? 'openrouter'
+        provider: generationConfig.provider
       });
     }
 
@@ -363,10 +371,18 @@ export class TemplatesService {
       2
     )}\n\nInstructions:\n- Draft a single reusable outreach template with a compelling subject line and body.\n- Use handlebars-style placeholders like {{first_name}}, {{company}}, {{role}}, {{pain_point}} when referencing lead attributes.\n- Keep body under 180 words, conversational but professional, and end with one clear CTA.\n- Return valid JSON with keys "subject" and "body".`;
 
+    const generationConfig = await this.aiConfig.resolveGenerationConfig(
+      user.organizationId,
+      dto.provider,
+      dto.model
+    );
+
     const raw = await this.aiClient.generate({
-      provider: dto.provider ?? 'openrouter',
+      provider: generationConfig.provider,
       systemPrompt,
-      userPrompt
+      userPrompt,
+      model: generationConfig.model,
+      apiKey: generationConfig.apiKey
     });
 
     const suggestion = parseAiResponse(raw);
@@ -717,7 +733,12 @@ export class TemplatesService {
 
     const baseTextTemplate = templateVersion?.textContent ?? template.body;
     const baseHtmlTemplate = templateVersion?.htmlContent ?? null;
-    const provider = dto.provider ?? 'openrouter';
+
+    const generationConfig = await this.aiConfig.resolveGenerationConfig(
+      user.organizationId,
+      dto.provider,
+      dto.model
+    );
 
     const results: AiDraftResult[] = [];
 
@@ -731,7 +752,7 @@ export class TemplatesService {
           body: 'Lead not found for this project.',
           html: null,
           templateVersionId: templateVersionId ?? undefined,
-          provider
+          provider: generationConfig.provider
         });
         continue;
       }
@@ -750,9 +771,11 @@ export class TemplatesService {
       });
 
       const raw = await this.aiClient.generate({
-        provider,
+        provider: generationConfig.provider,
         systemPrompt,
-        userPrompt
+        userPrompt,
+        model: generationConfig.model,
+        apiKey: generationConfig.apiKey
       });
 
       const { subject, body, html } = parseAiResponse(raw);
@@ -764,7 +787,7 @@ export class TemplatesService {
         body,
         html,
         templateVersionId: templateVersionId ?? undefined,
-        provider
+        provider: generationConfig.provider
       });
     }
 

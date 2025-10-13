@@ -45,23 +45,57 @@ export class LeadImportService {
       throw new BadRequestException('CSV file is required.');
     }
 
+    return this.ingestCsvBuffer(projectId, file.buffer, user);
+  }
+
+  async importGoogleSheet(
+    projectId: string,
+    sheetUrl: string,
+    user: AuthenticatedUser
+  ): Promise<LeadImportSummary> {
+    await this.projectAccess.ensureProjectAccess(projectId, user);
+
+    const exportUrl = this.buildGoogleSheetExportUrl(sheetUrl);
+
+    let buffer: ArrayBuffer;
+    try {
+      const response = await fetch(exportUrl);
+      if (!response.ok) {
+        throw new BadRequestException('Unable to access Google Sheet. Ensure the link is shared publicly.');
+      }
+      buffer = await response.arrayBuffer();
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to download Google Sheet.');
+    }
+
+    return this.ingestCsvBuffer(projectId, Buffer.from(buffer), user);
+  }
+
+  private async ingestCsvBuffer(
+    projectId: string,
+    buffer: Buffer,
+    user: AuthenticatedUser
+  ): Promise<LeadImportSummary> {
     await this.projectAccess.ensureProjectAccess(projectId, user);
 
     let records: Record<string, string>[];
     try {
-      records = parse(file.buffer, {
+      records = parse(buffer, {
         columns: true,
         skip_empty_lines: true,
         trim: true
       });
     } catch (error) {
       throw new BadRequestException(
-        `Unable to parse CSV file: ${error instanceof Error ? error.message : 'unknown error'}`
+        `Unable to parse CSV data: ${error instanceof Error ? error.message : 'unknown error'}`
       );
     }
 
     if (records.length === 0) {
-      throw new BadRequestException('CSV file does not contain any rows.');
+      throw new BadRequestException('The provided data does not contain any rows.');
     }
 
     const seen = new Set<string>();
@@ -193,6 +227,42 @@ export class LeadImportService {
       invalid,
       rows: rowResults
     };
+  }
+
+  private buildGoogleSheetExportUrl(rawUrl: string): string {
+    let parsed: URL;
+    try {
+      parsed = new URL(rawUrl);
+    } catch {
+      throw new BadRequestException('Invalid Google Sheet URL.');
+    }
+
+    if (!parsed.hostname.endsWith('docs.google.com')) {
+      throw new BadRequestException('Google Sheets URL must come from docs.google.com.');
+    }
+
+    // Already an export URL
+    if (parsed.pathname.includes('/export') && (parsed.searchParams.get('format') === 'csv' || parsed.searchParams.get('output') === 'csv')) {
+      return parsed.toString();
+    }
+
+    const segments = parsed.pathname.split('/').filter(Boolean);
+    const dIndex = segments.indexOf('d');
+    if (dIndex === -1 || dIndex + 1 >= segments.length) {
+      throw new BadRequestException('Unable to determine Google Sheet ID from the provided URL.');
+    }
+    const sheetId = segments[dIndex + 1];
+
+    let gid = parsed.searchParams.get('gid');
+    if (!gid && parsed.hash.startsWith('#gid=')) {
+      gid = parsed.hash.replace('#gid=', '');
+    }
+
+    let exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+    if (gid) {
+      exportUrl += `&gid=${gid}`;
+    }
+    return exportUrl;
   }
 
   private normalizeRecord(record: Record<string, string>): Record<string, string | null> {

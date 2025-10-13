@@ -29,8 +29,8 @@ interface GeminiResponse {
   }>;
 }
 
-const DEFAULT_MODELS: Record<Provider, string> = {
-  openrouter: 'openrouter/llama-3.1-8b-instruct',
+export const DEFAULT_MODELS: Record<Provider, string> = {
+  openrouter: 'z-ai/glm-4.5-air:free',
   openai: 'gpt-4o-mini',
   gemini: 'gemini-1.5-flash'
 };

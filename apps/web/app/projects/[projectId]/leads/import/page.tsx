@@ -70,6 +70,10 @@ export default function LeadImportPage({ params }: LeadImportPageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [sheetUrl, setSheetUrl] = useState("");
+  const [sheetImporting, setSheetImporting] = useState(false);
+  const [sheetError, setSheetError] = useState<string | null>(null);
 
   const projectId = params.projectId;
   const sessionToken = session?.sessionToken;
@@ -150,6 +154,7 @@ export default function LeadImportPage({ params }: LeadImportPageProps) {
     const selected = event.target.files?.[0];
     setSummary(null);
     setError(null);
+    setSuccess(null);
 
     if (!selected) {
       setFile(null);
@@ -229,6 +234,52 @@ export default function LeadImportPage({ params }: LeadImportPageProps) {
     return Papa.unparse(canonicalRows, { header: true });
   };
 
+  const handleSheetImport = async () => {
+    if (!sessionToken) {
+      setSheetError("Session missing. Please refresh and try again.");
+      return;
+    }
+    const trimmed = sheetUrl.trim();
+    if (!trimmed) {
+      setSheetError("Enter a public Google Sheet link.");
+      return;
+    }
+
+    setSheetImporting(true);
+    setSheetError(null);
+    setError(null);
+    setSuccess(null);
+    setSummary(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/v1/projects/${projectId}/leads/import/sheet`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-session-token": sessionToken
+        },
+        body: JSON.stringify({ url: trimmed })
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || response.statusText);
+      }
+
+      const result = (await response.json()) as ImportSummary;
+      setSummary(result);
+      setStep(3);
+      setSheetUrl("");
+      setSuccess(`Imported ${result.inserted} leads from Google Sheet.`);
+    } catch (importError) {
+      setSheetError(
+        importError instanceof Error ? importError.message : "Failed to import from Google Sheet."
+      );
+    } finally {
+      setSheetImporting(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!file || !sessionToken) {
       setError("Missing file or session context.");
@@ -243,6 +294,7 @@ export default function LeadImportPage({ params }: LeadImportPageProps) {
 
     setIsSubmitting(true);
     setError(null);
+    setSuccess(null);
 
     try {
       const csv = buildNormalizedCsv();
@@ -279,6 +331,7 @@ export default function LeadImportPage({ params }: LeadImportPageProps) {
     setHeaders([]);
     setSummary(null);
     setError(null);
+    setSuccess(null);
     setStep(1);
   };
 
@@ -306,20 +359,62 @@ export default function LeadImportPage({ params }: LeadImportPageProps) {
         </div>
       ) : null}
 
+      {success ? (
+        <div className="rounded border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {success}
+        </div>
+      ) : null}
+
       {step === 1 ? (
         <section className="rounded-lg border border-dashed border-slate-300 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-medium text-slate-800">Step 1: Upload CSV</h2>
+          <h2 className="text-lg font-medium text-slate-800">Step 1: Bring in leads</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Your file should include at least an <strong>Email</strong> column. You can map additional fields
-            on the next screen.
+            Choose the option that matches your source. You can always rerun the importer if you want to
+            try a different source later.
           </p>
-          <div className="mt-4">
-            <input
-              type="file"
-              accept=".csv,text/csv"
-              onChange={handleFileChange}
-              className="block w-full cursor-pointer rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-            />
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="rounded border border-slate-200 p-4">
+              <h3 className="text-base font-medium text-slate-800">Option A: Link a Google Sheet</h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Make sure the sheet is set to &ldquo;Anyone with the link can view.&rdquo; We pull the selected tab
+                and auto-detect columns.
+              </p>
+              <input
+                type="url"
+                value={sheetUrl}
+                onChange={(event) => setSheetUrl(event.target.value)}
+                placeholder="https://docs.google.com/spreadsheets/d/..."
+                className="mt-3 w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleSheetImport}
+                disabled={sheetImporting}
+                className="mt-3 inline-flex items-center justify-center rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
+              >
+                {sheetImporting ? "Importing…" : "Import from sheet"}
+              </button>
+              {sheetError ? (
+                <p className="mt-2 text-xs text-rose-600">{sheetError}</p>
+              ) : null}
+              <p className="mt-2 text-xs text-slate-500">
+                We convert the sheet to CSV behind the scenes. Include headers like Email, First Name, etc.
+              </p>
+            </div>
+            <div className="rounded border border-slate-200 p-4">
+              <h3 className="text-base font-medium text-slate-800">Option B: Upload a CSV</h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Your file should include at least an <strong>Email</strong> column. You can map additional
+                fields on the next screen before importing.
+              </p>
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                onChange={handleFileChange}
+                className="mt-3 block w-full cursor-pointer rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+              />
+              <p className="mt-2 text-xs text-slate-500">Maximum size 5 MB. UTF-8 encoded files work best.</p>
+            </div>
           </div>
         </section>
       ) : null}

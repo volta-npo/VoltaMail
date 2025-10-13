@@ -4,6 +4,7 @@ import { AuthenticatedRequest } from '../auth/authenticated-request.js';
 import { PrismaService } from '../prisma.service.js';
 import { TokenCipherService } from '../security/token-cipher.service.js';
 import { AiConfigResponse, AiProvider } from '@email-automation/shared';
+import { AiConfigService } from '../ai/ai-config.service.js';
 import { IsIn, IsObject, IsOptional, IsString, validateSync } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 
@@ -43,7 +44,8 @@ const AI_PROVIDERS: AiProvider[] = ['openrouter', 'openai', 'gemini'];
 export class OrganizationSettingsController {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly tokenCipher: TokenCipherService
+    private readonly tokenCipher: TokenCipherService,
+    private readonly aiConfigService: AiConfigService
   ) {}
 
   private parseStoredConfig(input: unknown): StoredAiConfig {
@@ -78,57 +80,11 @@ export class OrganizationSettingsController {
     };
   }
 
-  private buildResponse(config: StoredAiConfig, envFallbacks: Record<AiProvider, { hasKey: boolean; defaultModel: string }>): AiConfigResponse {
-    const defaultProvider: AiProvider =
-      config.defaultProvider && AI_PROVIDERS.includes(config.defaultProvider)
-        ? config.defaultProvider
-        : 'openrouter';
-
-    const providers = AI_PROVIDERS.reduce((acc, provider) => {
-      const providerConfig = config.providers?.[provider];
-      const hasStoredKey = Boolean(providerConfig?.apiKeyCiphertext);
-      acc[provider] = {
-        hasKey: hasStoredKey || envFallbacks[provider].hasKey,
-        model: providerConfig?.model ?? envFallbacks[provider].defaultModel ?? null
-      };
-      return acc;
-    }, {} as Record<AiProvider, { hasKey: boolean; model: string | null }>);
-
-    return {
-      defaultProvider,
-      providers
-    };
-  }
-
-  private getEnvFallbacks(): Record<AiProvider, { hasKey: boolean; defaultModel: string }> {
-    return {
-      openrouter: {
-        hasKey: Boolean(process.env.OPENROUTER_API_KEY),
-        defaultModel: 'openrouter/llama-3.1-8b-instruct'
-      },
-      openai: {
-        hasKey: Boolean(process.env.OPENAI_API_KEY),
-        defaultModel: 'gpt-4o-mini'
-      },
-      gemini: {
-        hasKey: Boolean(process.env.GEMINI_API_KEY),
-        defaultModel: 'gemini-1.5-flash'
-      }
-    };
-  }
-
   @Get('ai-config')
   @UseGuards(SessionGuard)
   async getAiConfig(@Req() request: AuthenticatedRequest): Promise<AiConfigResponse> {
     const organizationId = request.auth!.user.organizationId;
-
-    const organization = await this.prisma.organization.findUnique({
-      where: { id: organizationId },
-      select: { aiConfigJson: true }
-    });
-
-    const storedConfig = this.parseStoredConfig(organization?.aiConfigJson ?? null);
-    return this.buildResponse(storedConfig, this.getEnvFallbacks());
+    return this.aiConfigService.getPublicConfig(organizationId);
   }
 
   @Put('ai-config')
@@ -206,6 +162,6 @@ export class OrganizationSettingsController {
       }
     });
 
-    return this.buildResponse(updatedConfig, this.getEnvFallbacks());
+    return this.aiConfigService.getPublicConfig(organizationId);
   }
 }

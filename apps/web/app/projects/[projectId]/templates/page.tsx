@@ -95,6 +95,13 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
   const [success, setSuccess] = useState<string | null>(null);
   const [knowledgeBase, setKnowledgeBase] = useState('');
   const [knowledgeSaving, setKnowledgeSaving] = useState(false);
+  const [knowledgeUploadInfo, setKnowledgeUploadInfo] = useState<string | null>(null);
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [websiteLoading, setWebsiteLoading] = useState(false);
+  const [websiteError, setWebsiteError] = useState<string | null>(null);
+  const [googleDocUrl, setGoogleDocUrl] = useState('');
+  const [googleDocLoading, setGoogleDocLoading] = useState(false);
+  const [googleDocError, setGoogleDocError] = useState<string | null>(null);
   const [gmailConnections, setGmailConnections] = useState<GmailConnectionSummary[]>([]);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string>('');
   const [sendingDraftId, setSendingDraftId] = useState<string | null>(null);
@@ -610,16 +617,124 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
     }
   };
 
+  const readFileAsText = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+      reader.onerror = () => reject(reader.error ?? new Error('Unable to read file.'));
+      reader.readAsText(file);
+    });
+
   const handleKnowledgeFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const text = typeof reader.result === "string" ? reader.result : "";
-      setKnowledgeBase(text);
-      setSuccess(`Loaded knowledge base from ${file.name}`);
-    };
-    reader.readAsText(file);
+    const files = event.target.files ? Array.from(event.target.files) : [];
+    if (files.length === 0) return;
+
+    setError(null);
+    setKnowledgeUploadInfo(null);
+
+    Promise.all(
+      files.map(async (file) => ({ name: file.name, content: await readFileAsText(file) }))
+    )
+      .then((items) => {
+        const combined = items
+          .map((item) => `# ${item.name}\n${item.content}`)
+          .join('\n\n');
+        setKnowledgeBase((prev) =>
+          prev && prev.trim().length > 0 ? `${prev}\n\n${combined}` : combined
+        );
+        setKnowledgeUploadInfo(`Added ${items.length} document${items.length > 1 ? 's' : ''}.`);
+        setSuccess(`Loaded ${items.length} knowledge source${items.length > 1 ? 's' : ''}.`);
+      })
+      .catch(() => {
+        setError('Failed to read one of the uploaded documents.');
+      })
+      .finally(() => {
+        event.target.value = '';
+      });
+  };
+
+  const handleWebsiteScrape = async () => {
+    if (!sessionToken) return;
+    const trimmed = websiteUrl.trim();
+    if (!trimmed) {
+      setWebsiteError('Enter a website URL to scrape.');
+      return;
+    }
+
+    setWebsiteLoading(true);
+    setWebsiteError(null);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/v1/projects/${projectId}/knowledge-base/source`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-session-token': sessionToken
+        },
+        body: JSON.stringify({ type: 'website', url: trimmed })
+      });
+
+      if (!response.ok) {
+        throw new Error(await extractErrorMessage(response));
+      }
+
+      const payload = (await response.json()) as { fragment: string };
+      setKnowledgeBase((prev) =>
+        prev && prev.trim().length > 0 ? `${prev}\n\n${payload.fragment}` : payload.fragment
+      );
+      setWebsiteUrl('');
+      setSuccess('Website content added to knowledge base.');
+    } catch (scrapeError) {
+      setWebsiteError(
+        scrapeError instanceof Error ? scrapeError.message : 'Failed to scrape website content.'
+      );
+    } finally {
+      setWebsiteLoading(false);
+    }
+  };
+
+  const handleGoogleDocImport = async () => {
+    if (!sessionToken) return;
+    const trimmed = googleDocUrl.trim();
+    if (!trimmed) {
+      setGoogleDocError('Enter a Google Doc link.');
+      return;
+    }
+
+    setGoogleDocLoading(true);
+    setGoogleDocError(null);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/v1/projects/${projectId}/knowledge-base/source`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-session-token': sessionToken
+        },
+        body: JSON.stringify({ type: 'googleDoc', url: trimmed })
+      });
+
+      if (!response.ok) {
+        throw new Error(await extractErrorMessage(response));
+      }
+
+      const payload = (await response.json()) as { fragment: string };
+      setKnowledgeBase((prev) =>
+        prev && prev.trim().length > 0 ? `${prev}\n\n${payload.fragment}` : payload.fragment
+      );
+      setGoogleDocUrl('');
+      setSuccess('Linked Google Doc content added.');
+    } catch (docError) {
+      setGoogleDocError(
+        docError instanceof Error ? docError.message : 'Failed to import Google Doc content.'
+      );
+    } finally {
+      setGoogleDocLoading(false);
+    }
   };
 
   const handleCreate = async (overrides?: {
@@ -1480,38 +1595,102 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
       ) : null}
 
       <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-medium text-slate-800">Brand Knowledge Base</h2>
+        <h2 className="text-lg font-medium text-slate-800">Brand Knowledge Onboarding</h2>
         <p className="mt-1 text-sm text-slate-600">
-          Provide key product positioning, tone, and differentiation. The AI model will reference this when drafting outreach.
+          Ground the AI with your narrative, then layer in supporting sources. The more context you add, the
+          more bespoke your outreach becomes.
         </p>
-        <textarea
-          value={knowledgeBase}
-          onChange={(event) => setKnowledgeBase(event.target.value)}
-          rows={6}
-          className="mt-4 w-full rounded border border-slate-300 px-3 py-2 text-sm font-mono focus:border-slate-500 focus:outline-none"
-          placeholder="Add your brand story, value props, tone guidelines, and proof points…"
-        />
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <label className="flex cursor-pointer items-center gap-2 rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
-            Upload context
-            <input
-              type="file"
-              accept=".txt,.md,.markdown,.mdown,.pdf,.json"
-              onChange={handleKnowledgeFileUpload}
-              className="hidden"
+        <div className="mt-4 space-y-6">
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Step 1 • Core narrative</h3>
+            <textarea
+              value={knowledgeBase}
+              onChange={(event) => setKnowledgeBase(event.target.value)}
+              rows={6}
+              className="mt-3 w-full rounded border border-slate-300 px-3 py-2 text-sm font-mono focus:border-slate-500 focus:outline-none"
+              placeholder="Summarize your brand story, tone, ideal customer profile, proof points, and objections you handle best."
             />
-          </label>
-          <button
-            type="button"
-            onClick={handleKnowledgeSave}
-            disabled={knowledgeSaving}
-            className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
-          >
-            {knowledgeSaving ? "Saving…" : "Save context"}
-          </button>
-          <span className="text-xs text-slate-500">
-            Accepts Markdown, plain text, JSON, or PDF (we extract readable text).
-          </span>
+          </div>
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Step 2 • Add supporting sources</h3>
+            <p className="mt-1 text-sm text-slate-600">Choose one or more options below. We append everything to your knowledge base so you can edit before saving.</p>
+            <div className="mt-3 grid gap-4 md:grid-cols-3">
+              <div className="rounded border border-slate-200 p-4">
+                <h4 className="text-base font-medium text-slate-800">Scrape your website</h4>
+                <p className="mt-1 text-sm text-slate-600">Paste your homepage or product URL. We pull readable copy only.</p>
+                <input
+                  type="url"
+                  value={websiteUrl}
+                  onChange={(event) => setWebsiteUrl(event.target.value)}
+                  placeholder="https://www.example.com"
+                  className="mt-3 w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={handleWebsiteScrape}
+                  disabled={websiteLoading}
+                  className="mt-3 inline-flex items-center justify-center rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
+                >
+                  {websiteLoading ? 'Pulling…' : 'Pull website copy'}
+                </button>
+                {websiteError ? <p className="mt-2 text-xs text-rose-600">{websiteError}</p> : null}
+              </div>
+              <div className="rounded border border-slate-200 p-4">
+                <h4 className="text-base font-medium text-slate-800">Link a Google Doc</h4>
+                <p className="mt-1 text-sm text-slate-600">Share your pitch deck, scripting doc, or onboarding notes. Set the doc to viewable.</p>
+                <input
+                  type="url"
+                  value={googleDocUrl}
+                  onChange={(event) => setGoogleDocUrl(event.target.value)}
+                  placeholder="https://docs.google.com/document/d/..."
+                  className="mt-3 w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={handleGoogleDocImport}
+                  disabled={googleDocLoading}
+                  className="mt-3 inline-flex items-center justify-center rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
+                >
+                  {googleDocLoading ? 'Importing…' : 'Import Google Doc'}
+                </button>
+                {googleDocError ? <p className="mt-2 text-xs text-rose-600">{googleDocError}</p> : null}
+              </div>
+              <div className="rounded border border-slate-200 p-4">
+                <h4 className="text-base font-medium text-slate-800">Upload documents</h4>
+                <p className="mt-1 text-sm text-slate-600">Drop playbooks, FAQs, or tone guides. You can upload multiple files at once.</p>
+                <label className="mt-3 flex cursor-pointer items-center justify-center rounded border border-dashed border-slate-300 px-3 py-6 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                  Select files
+                  <input
+                    type="file"
+                    accept=".txt,.md,.markdown,.mdown,.pdf,.json"
+                    multiple
+                    onChange={handleKnowledgeFileUpload}
+                    className="hidden"
+                  />
+                </label>
+                <p className="mt-2 text-xs text-slate-500">Supported: Markdown, plain text, JSON, PDF (we extract readable text).</p>
+                {knowledgeUploadInfo ? (
+                  <p className="mt-1 text-xs text-emerald-600">{knowledgeUploadInfo}</p>
+                ) : null}
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 border-t border-slate-200 pt-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Step 3 • Save &amp; continue</h3>
+              <p className="text-sm text-slate-600">Review the text above, make edits, then lock it in.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleKnowledgeSave}
+                disabled={knowledgeSaving}
+                className="inline-flex items-center justify-center rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
+              >
+                {knowledgeSaving ? 'Saving…' : 'Save knowledge base'}
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 

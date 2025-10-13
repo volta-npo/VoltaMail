@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   Param,
@@ -18,6 +19,9 @@ import { LeadImportSummary, LeadSummary } from '@email-automation/shared';
 import { memoryStorage } from 'multer';
 import { PrismaService } from '../prisma.service.js';
 import { ProjectAccessService } from '../projects/project-access.service.js';
+import { ImportGoogleSheetDto } from './dto/import-google-sheet.dto.js';
+import { plainToInstance } from 'class-transformer';
+import { validateSync } from 'class-validator';
 
 @Controller('v1/projects/:projectId/leads')
 export class LeadsController {
@@ -47,6 +51,26 @@ export class LeadsController {
     }
 
     return this.leadImportService.importCsv(projectId, file, request.auth.user);
+  }
+
+  @Post('import/sheet')
+  @UseGuards(SessionGuard)
+  async importGoogleSheet(
+    @Param('projectId') projectId: string,
+    @Body() body: ImportGoogleSheetDto,
+    @Req() request: AuthenticatedRequest
+  ): Promise<LeadImportSummary> {
+    if (!request.auth) {
+      throw new BadRequestException('Session missing');
+    }
+
+    const dto = plainToInstance(ImportGoogleSheetDto, body);
+    const errors = validateSync(dto, { whitelist: true, forbidNonWhitelisted: true });
+    if (errors.length > 0) {
+      throw new BadRequestException('Invalid Google Sheet payload.');
+    }
+
+    return this.leadImportService.importGoogleSheet(projectId, dto.url, request.auth.user);
   }
 
   @Get()

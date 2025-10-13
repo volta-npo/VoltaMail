@@ -61,19 +61,29 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-6 py-10">
-      <header className="flex flex-col gap-1">
-        <span className="text-xs uppercase tracking-wide text-slate-500">Welcome to</span>
-        <h1 className="text-3xl font-semibold text-slate-900">{APP_NAME}</h1>
-        <p className="text-sm text-slate-600">
-          Logged in as <strong>{session.user.email}</strong> • Organization:{' '}
-          <strong>{session.user.organizationName}</strong>
-          {organizationRoleLabel ? (
-            <>
-              {' '}
-              • Role: <strong>{organizationRoleLabel}</strong>
-            </>
-          ) : null}
-        </p>
+      <header className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <span className="text-xs uppercase tracking-wide text-slate-500">Welcome to</span>
+          <h1 className="text-3xl font-semibold text-slate-900">{APP_NAME}</h1>
+          <p className="text-sm text-slate-600">
+            Logged in as <strong>{session.user.email}</strong> • Organization:{' '}
+            <strong>{session.user.organizationName}</strong>
+            {organizationRoleLabel ? (
+              <>
+                {' '}
+                • Role: <strong>{organizationRoleLabel}</strong>
+              </>
+            ) : null}
+          </p>
+        </div>
+        <div>
+          <Link
+            href="/settings/ai"
+            className="inline-flex items-center rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Manage AI provider keys
+          </Link>
+        </div>
       </header>
       <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-medium text-slate-800">Workflow Progress</h2>

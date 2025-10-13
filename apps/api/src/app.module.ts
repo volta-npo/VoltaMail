@@ -8,6 +8,8 @@ import { TemplatesModule } from './templates/templates.module.js';
 import { ProjectSettingsController } from './projects/project-settings.controller.js';
 import { OrganizationSettingsController } from './organizations/organization-settings.controller.js';
 import { TokenCipherService } from './security/token-cipher.service.js';
+import { PrismaService } from './prisma.service.js';
+import { AiConfigService } from './ai/ai-config.service.js';
 
 @Module({
   imports: [
@@ -20,6 +22,6 @@ import { TokenCipherService } from './security/token-cipher.service.js';
     TemplatesModule
   ],
   controllers: [HealthController, ProjectSettingsController, OrganizationSettingsController],
-  providers: [TokenCipherService]
+  providers: [TokenCipherService, PrismaService, AiConfigService]
 })
 export class AppModule {}
