@@ -75,6 +75,8 @@ interface PersistedState {
 }
 
 const STORAGE_KEY = (projectId: string) => `templates-state-${projectId}`;
+const DEFAULT_SUBJECT = "Hi {{first_name|there}} — quick intro";
+const DEFAULT_BODY = "{{first_name|there}},\n\nI noticed {{company}} and thought you might be interested in what we do.";
 
 export default function TemplatesPage({ params }: TemplatesPageProps) {
   const { data: session, status } = useSession();
@@ -89,10 +91,8 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selectedIdRef = useRef<string | null>(null);
   const [name, setName] = useState("");
-  const [subject, setSubject] = useState("Hi {{first_name|there}} — quick intro");
-  const [body, setBody] = useState(
-    "{{first_name|there}},\n\nI noticed {{company}} and thought you might be interested in what we do."
-  );
+  const [subject, setSubject] = useState(DEFAULT_SUBJECT);
+  const [body, setBody] = useState(DEFAULT_BODY);
   const [preview, setPreview] = useState<RenderedLeadPreview[] | null>(null);
   const [aiDrafts, setAiDrafts] = useState<AiDraftResult[] | null>(null);
   const [aiProvider, setAiProvider] = useState<'openrouter' | 'openai' | 'gemini'>('openrouter');
@@ -129,6 +129,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
   const [bulkSendEnabled, setBulkSendEnabled] = useState(false);
   const [previewSending, setPreviewSending] = useState(false);
   const [previewSendingId, setPreviewSendingId] = useState<string | null>(null);
+  const [deletingTemplate, setDeletingTemplate] = useState(false);
   const [htmlDraft, setHtmlDraft] = useState('');
   const [activeTemplateVersionId, setActiveTemplateVersionId] = useState<string | null>(null);
   const [savingVersion, setSavingVersion] = useState(false);
@@ -151,6 +152,62 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
   const [chatHistory, setChatHistory] = useState<AiChatMessage[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+
+  const resetEditorToDefaults = useCallback(() => {
+    setSelectedId(null);
+    selectedIdRef.current = null;
+    setName("Welcome email");
+    setSubject(DEFAULT_SUBJECT);
+    setBody(DEFAULT_BODY);
+    setHtmlDraft('');
+    setActiveTemplateVersionId(null);
+    setDesignerState(defaultDesignerState);
+    setDesignerPreviewHtml('');
+    setDesignerPreviewText('');
+    setDesignMode('builder');
+    setAiDrafts(null);
+    setPreview(null);
+    setSelectedLeadIds([]);
+    setSentLog([]);
+    setStrategyNotes('');
+    setHtmlSuggestionNotes('');
+    setChatHistory([]);
+    setChatError(null);
+    setIterationNotes('');
+    setVibeNotes({});
+    setEnhancedPersonalization(false);
+    setAllowToolUse(true);
+    setBulkSendEnabled(false);
+    setTemplatePresets([]);
+    setSelectedPresetId(null);
+    setHtmlSuggestions(undefined);
+  }, []);
+
+  const hydrateEditorFromTemplate = useCallback((template: TemplateSummary) => {
+    setSelectedId(template.id);
+    selectedIdRef.current = template.id;
+    setName(template.name);
+    setSubject(template.subject);
+    setBody(template.activeVersion?.textContent ?? template.body);
+    setHtmlDraft(template.activeVersion?.htmlContent ?? '');
+    setActiveTemplateVersionId(template.activeVersion?.id ?? null);
+    setDesignerState(defaultDesignerState);
+    setDesignerPreviewHtml('');
+    setDesignerPreviewText('');
+    setDesignMode(template.activeVersion?.htmlContent ? 'html' : 'builder');
+    setAiDrafts(null);
+    setPreview(null);
+    setSelectedLeadIds([]);
+    setSentLog([]);
+    setStrategyNotes('');
+    setHtmlSuggestionNotes('');
+    setChatHistory([]);
+    setChatError(null);
+    setIterationNotes('');
+    setVibeNotes({});
+    setTemplatePresets([]);
+    setSelectedPresetId(null);
+  }, []);
   const handleDesignerPreview = useCallback((html: string, text: string) => {
     setDesignerPreviewHtml(html);
     setDesignerPreviewText(text);
@@ -563,6 +620,32 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
     }
     return templates.find((template) => template.id === selectedId) ?? null;
   }, [templates, selectedId]);
+
+  useEffect(() => {
+    if (!success || !/sent/i.test(success)) {
+      return;
+    }
+
+    let cancelled = false;
+    void import('canvas-confetti')
+      .then(({ default: confetti }) => {
+        if (cancelled) {
+          return;
+        }
+        confetti({
+          particleCount: 120,
+          spread: 70,
+          origin: { y: 0.7 }
+        });
+      })
+      .catch(() => {
+        // ignore confetti load failures
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [success]);
 
   const selectedPreset = useMemo(() => {
     if (!selectedPresetId) {
@@ -1141,6 +1224,57 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
       setError(bundleError instanceof Error ? bundleError.message : "Failed to generate AI template");
     } finally {
       setSuggestingTemplate(false);
+    }
+  };
+
+  const handleDeleteTemplate = async () => {
+    if (!selectedId) {
+      setError('Select a template before deleting.');
+      return;
+    }
+
+    const templateToDelete = templates.find((template) => template.id === selectedId);
+    if (!templateToDelete) {
+      setError('Selected template could not be found.');
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete “${templateToDelete.name}”? This cannot be undone.`);
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingTemplate(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/v1/templates/${selectedId}`, {
+        method: 'DELETE',
+        headers: {
+          'x-session-token': sessionToken ?? ''
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(await extractErrorMessage(response));
+      }
+
+      const nextTemplates = templates.filter((template) => template.id !== selectedId);
+      setTemplates(nextTemplates);
+
+      if (nextTemplates.length > 0) {
+        hydrateEditorFromTemplate(nextTemplates[0]);
+      } else {
+        resetEditorToDefaults();
+      }
+
+      persistedRef.current = null;
+      setSuccess('Template deleted.');
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Failed to delete template.');
+    } finally {
+      setDeletingTemplate(false);
     }
   };
 
@@ -2450,6 +2584,14 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
               </button>
               <button
                 type="button"
+                onClick={handleDeleteTemplate}
+                disabled={!selectedId || deletingTemplate}
+                className="rounded border border-rose-400 px-3 py-1.5 text-sm font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-60"
+              >
+                {deletingTemplate ? "Deleting…" : "Delete template"}
+              </button>
+              <button
+                type="button"
                 onClick={() => handlePreview(5)}
                 className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
@@ -2469,7 +2611,11 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
                 disabled={generatingAi}
                 className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
               >
-                {generatingAi ? "Generating drafts…" : "Generate drafts"}
+                {generatingAi
+                  ? "Generating drafts…"
+                  : enhancedPersonalization
+                    ? "Generate personalized drafts"
+                    : "Generate drafts"}
               </button>
               <button
                 type="button"
@@ -2748,7 +2894,11 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
               disabled={generatingAi}
               className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
             >
-              {generatingAi ? 'Regenerating…' : 'Regenerate drafts'}
+              {generatingAi
+                ? 'Regenerating…'
+                : enhancedPersonalization
+                  ? 'Regenerate personalized drafts'
+                  : 'Regenerate drafts'}
             </button>
             <button
               type="button"

@@ -5,6 +5,7 @@ import {
   Param,
   Post,
   Put,
+  Delete,
   Req,
   UseGuards
 } from '@nestjs/common';
@@ -65,6 +66,16 @@ export class TemplatesController {
     @Req() request: AuthenticatedRequest
   ): Promise<TemplateSummary> {
     return this.templatesService.updateTemplate(templateId, body, request.auth!.user);
+  }
+
+  @Delete('templates/:templateId')
+  @UseGuards(SessionGuard)
+  async deleteTemplate(
+    @Param('templateId') templateId: string,
+    @Req() request: AuthenticatedRequest
+  ) {
+    await this.templatesService.deleteTemplate(templateId, request.auth!.user);
+    return { success: true };
   }
 
   @Post('templates/:templateId/render')

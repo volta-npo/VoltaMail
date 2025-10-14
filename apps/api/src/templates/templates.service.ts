@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service.js';
 import { ProjectAccessService } from '../projects/project-access.service.js';
 import { AuthenticatedUser } from '../auth/authenticated-request.js';
@@ -36,6 +36,8 @@ import { randomUUID } from 'node:crypto';
 
 @Injectable()
 export class TemplatesService {
+  private readonly logger = new Logger(TemplatesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly projectAccess: ProjectAccessService,
@@ -43,6 +45,23 @@ export class TemplatesService {
     private readonly gmailService: GmailService,
     private readonly aiConfig: AiConfigService
   ) {}
+
+  private async runWithTimeout<T>(promise: Promise<T>, message: string, timeoutMs = 25000): Promise<T> {
+    let timeoutId: NodeJS.Timeout | undefined;
+    try {
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new BadRequestException(message));
+        }, timeoutMs);
+      });
+
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    }
+  }
 
   async listTemplates(projectId: string, user: AuthenticatedUser): Promise<TemplateSummary[]> {
     await this.projectAccess.ensureProjectAccess(projectId, user);
@@ -146,6 +165,23 @@ export class TemplatesService {
     return toTemplateSummary(updated);
   }
 
+  async deleteTemplate(templateId: string, user: AuthenticatedUser): Promise<void> {
+    const template = await this.prisma.template.findUnique({ where: { id: templateId } });
+
+    if (!template) {
+      throw new NotFoundException('Template not found');
+    }
+
+    await this.projectAccess.ensureProjectAccess(template.projectId, user);
+
+    await this.prisma.$transaction([
+      this.prisma.templateVersion.deleteMany({ where: { templateId } }),
+      this.prisma.template.delete({ where: { id: templateId } })
+    ]);
+
+    this.logger.log(`Template ${templateId} deleted by user ${user.id}`);
+  }
+
   async renderTemplate(
     templateId: string,
     dto: RenderTemplateDto,
@@ -247,13 +283,16 @@ export class TemplatesService {
         }
       });
 
-      const raw = await this.aiClient.generate({
-        provider: generationConfig.provider,
-        systemPrompt,
-        userPrompt,
-        model: generationConfig.model,
-        apiKey: generationConfig.apiKey
-      });
+      const raw = await this.runWithTimeout(
+        this.aiClient.generate({
+          provider: generationConfig.provider,
+          systemPrompt,
+          userPrompt,
+          model: generationConfig.model,
+          apiKey: generationConfig.apiKey
+        }),
+        'AI took too long to generate a draft. Please try again.'
+      );
 
       const { subject, body, html } = parseAiResponse(raw);
 
@@ -292,7 +331,12 @@ export class TemplatesService {
           break;
         }
         const lead = leads[currentIndex];
-        results[currentIndex] = await generateForLead(lead);
+        try {
+          results[currentIndex] = await generateForLead(lead);
+        } catch (error) {
+          this.logger.warn(`Failed to generate draft for lead ${lead.id}: ${error instanceof Error ? error.message : String(error)}`);
+          throw error;
+        }
       }
     };
 
@@ -356,13 +400,16 @@ export class TemplatesService {
 
     const generationConfig = await this.aiConfig.resolveGenerationConfig(user.organizationId);
 
-    const raw = await this.aiClient.generate({
-      provider: generationConfig.provider,
-      systemPrompt,
-      userPrompt,
-      model: generationConfig.model,
-      apiKey: generationConfig.apiKey
-    });
+    const raw = await this.runWithTimeout(
+      this.aiClient.generate({
+        provider: generationConfig.provider,
+        systemPrompt,
+        userPrompt,
+        model: generationConfig.model,
+        apiKey: generationConfig.apiKey
+      }),
+      'AI took too long to suggest a template. Try again with fewer leads or retry in a moment.'
+    );
 
     return parseChatResponse(raw);
   }
@@ -876,13 +923,16 @@ export class TemplatesService {
         instructions: dto.instructions
       });
 
-      const raw = await this.aiClient.generate({
-        provider: generationConfig.provider,
-        systemPrompt,
-        userPrompt,
-        model: generationConfig.model,
-        apiKey: generationConfig.apiKey
-      });
+      const raw = await this.runWithTimeout(
+        this.aiClient.generate({
+          provider: generationConfig.provider,
+          systemPrompt,
+          userPrompt,
+          model: generationConfig.model,
+          apiKey: generationConfig.apiKey
+        }),
+        'AI took too long to iterate on the draft. Please try again.'
+      );
 
       const { subject, body, html } = parseAiResponse(raw);
 

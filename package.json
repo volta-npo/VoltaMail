@@ -17,6 +17,7 @@
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^14.2.4",
+    "@types/canvas-confetti": "1.6.3",
     "@typescript-eslint/eslint-plugin": "^7.13.0",
     "@typescript-eslint/parser": "^7.13.0",
     "eslint": "^8.57.0",
@@ -26,5 +27,8 @@
     "turbo": "^1.13.3",
     "typescript": "^5.4.5",
     "vitest": "^1.6.0"
+  },
+  "dependencies": {
+    "canvas-confetti": "1.6.0"
   }
 }

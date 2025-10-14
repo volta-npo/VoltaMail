@@ -172,12 +172,12 @@ export default async function DashboardPage() {
                     >
                       Draft &amp; send emails
                     </Link>
-                    <Link
+                    <a
                       href={`/integrations/gmail/connect?projectId=${project.id}`}
                       className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
                     >
                       Connect Gmail
-                    </Link>
+                    </a>
                   </div>
                 </div>
               );
@@ -219,12 +219,12 @@ export default async function DashboardPage() {
                       >
                         Import leads
                       </Link>
-                      <Link
+                      <a
                         href={`/integrations/gmail/connect?projectId=${project.id}`}
                         className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
                       >
                         Connect Gmail
-                      </Link>
+                      </a>
                     </div>
                   </div>
                   {connections.length === 0 ? (
