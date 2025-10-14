@@ -1019,6 +1019,11 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
       }
     }
 
+    if ((!leadIds || leadIds.length === 0) && leadOptions.length === 0) {
+      setError('Import leads before generating drafts.');
+      return;
+    }
+
     setError(null);
     setSuccess(null);
     setGeneratingAi(true);
@@ -1184,6 +1189,11 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
 
     if (options?.designOnly) {
       setError("Template Studio visuals are coming soon.");
+      return;
+    }
+
+    if (leadOptions.length === 0) {
+      setError('Import leads before asking AI to draft a template.');
       return;
     }
 

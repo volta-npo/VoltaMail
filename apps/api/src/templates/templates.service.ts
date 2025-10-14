@@ -486,7 +486,7 @@ export class TemplatesService {
       throw new NotFoundException('Project not found');
     }
 
-    const sampleSize = Math.min(dto.leadSampleSize ?? 25, 50);
+    const sampleSize = Math.min(dto.leadSampleSize ?? 10, 25);
 
     const leads = await this.prisma.lead.findMany({
       where: { projectId },
@@ -530,13 +530,16 @@ export class TemplatesService {
       dto.model
     );
 
-    const raw = await this.aiClient.generate({
-      provider: generationConfig.provider,
-      systemPrompt,
-      userPrompt,
-      model: generationConfig.model,
-      apiKey: generationConfig.apiKey
-    });
+    const raw = await this.runWithTimeout(
+      this.aiClient.generate({
+        provider: generationConfig.provider,
+        systemPrompt,
+        userPrompt,
+        model: generationConfig.model,
+        apiKey: generationConfig.apiKey
+      }),
+      'AI took too long to draft a template. Please retry with fewer leads.'
+    );
 
     const suggestion = parseAiResponse(raw);
 
