@@ -8,55 +8,60 @@ datasource db {
 }
 
 model Organization {
-  id         String     @id @default(cuid())
-  name       String
-  plan       String     @default("free")
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-  users      User[]
-  projects   Project[]
-  auditLogs  AuditLog[]
+  id           String     @id @default(cuid())
+  name         String
+  plan         String     @default("free")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  users        User[]
+  projects     Project[]
+  auditLogs    AuditLog[]
   aiConfigJson Json?
+
+  @@index([plan])
 }
 
 model User {
-  id              String            @id @default(cuid())
-  email           String            @unique
-  passwordHash    String?
-  displayName     String?
-  organization    Organization      @relation(fields: [organizationId], references: [id])
-  organizationId  String
-  role            OrganizationRole  @default(MANAGER)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  sessions        Session[]
-  accounts        Account[]
+  id                 String           @id @default(cuid())
+  email              String           @unique
+  passwordHash       String?
+  displayName        String?
+  organization       Organization     @relation(fields: [organizationId], references: [id])
+  organizationId     String
+  role               OrganizationRole @default(MANAGER)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  sessions           Session[]
+  accounts           Account[]
   projectMemberships ProjectMember[]
+
+  @@index([organizationId])
+  @@index([email, organizationId])
 }
 
 model Project {
-  id             String    @id @default(cuid())
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  organizationId String
-  name           String
-  timezone       String     @default("UTC")
-  brandingJson   Json?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  members        ProjectMember[]
+  id               String            @id @default(cuid())
+  organization     Organization      @relation(fields: [organizationId], references: [id])
+  organizationId   String
+  name             String
+  timezone         String            @default("UTC")
+  brandingJson     Json?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  members          ProjectMember[]
   gmailConnections GmailConnection[]
-  leads          Lead[]
-  templates      Template[]
+  leads            Lead[]
+  templates        Template[]
 }
 
 model ProjectMember {
-  id         String          @id @default(cuid())
-  project    Project         @relation(fields: [projectId], references: [id])
-  projectId  String
-  user       User            @relation(fields: [userId], references: [id])
-  userId     String
-  role       ProjectRole     @default(WRITER)
-  createdAt  DateTime        @default(now())
+  id        String      @id @default(cuid())
+  project   Project     @relation(fields: [projectId], references: [id])
+  projectId String
+  user      User        @relation(fields: [userId], references: [id])
+  userId    String
+  role      ProjectRole @default(WRITER)
+  createdAt DateTime    @default(now())
 
   @@unique([projectId, userId])
 }
@@ -68,22 +73,25 @@ model Session {
   userId       String
   expires      DateTime
   createdAt    DateTime @default(now())
+
+  @@index([userId, expires])
+  @@index([expires])
 }
 
 model Account {
-  id                 String   @id @default(cuid())
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?  @map("refreshToken")
-  access_token       String?  @map("accessToken")
-  expires_at         Int?     @map("expiresAt")
-  token_type         String?  @map("tokenType")
-  scope              String?
-  id_token           String?  @map("idToken")
-  session_state      String?  @map("sessionState")
+  id                String  @id @default(cuid())
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @map("refreshToken")
+  access_token      String? @map("accessToken")
+  expires_at        Int?    @map("expiresAt")
+  token_type        String? @map("tokenType")
+  scope             String?
+  id_token          String? @map("idToken")
+  session_state     String? @map("sessionState")
 
   @@unique([provider, providerAccountId])
 }
@@ -97,16 +105,20 @@ model VerificationToken {
 }
 
 model AuditLog {
-  id            String   @id @default(cuid())
-  organization  Organization @relation(fields: [organizationId], references: [id])
+  id             String       @id @default(cuid())
+  organization   Organization @relation(fields: [organizationId], references: [id])
   organizationId String
-  actorUserId   String?
-  scope         String
-  action        String
-  targetType    String
-  targetId      String?
-  metaJson      Json?
-  createdAt     DateTime @default(now())
+  actorUserId    String?
+  scope          String
+  action         String
+  targetType     String
+  targetId       String?
+  metaJson       Json?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([targetType, targetId])
 }
 
 model GmailConnection {
@@ -124,64 +136,69 @@ model GmailConnection {
   updatedAt              DateTime  @updatedAt
 
   @@unique([projectId, email])
+  @@index([projectId, createdAt])
+  @@index([email])
 }
 
 model Lead {
-  id           String     @id @default(cuid())
-  project      Project    @relation(fields: [projectId], references: [id])
-  projectId    String
-  email        String
-  firstName    String?
-  lastName     String?
-  company      String?
-  role         String?
-  timezone     String?
-  phone        String?
-  address      String?
-  customJson   Json?
-  status       LeadStatus @default(IMPORTED)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id         String     @id @default(cuid())
+  project    Project    @relation(fields: [projectId], references: [id])
+  projectId  String
+  email      String
+  firstName  String?
+  lastName   String?
+  company    String?
+  role       String?
+  timezone   String?
+  phone      String?
+  address    String?
+  customJson Json?
+  status     LeadStatus @default(IMPORTED)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 
   @@unique([projectId, email])
   @@index([projectId, status])
+  @@index([email])
+  @@index([projectId, createdAt])
+  @@index([status, createdAt])
 }
 
 model Template {
-  id        String   @id @default(cuid())
-  project   Project  @relation(fields: [projectId], references: [id])
-  projectId String
-  name      String
-  subject   String
-  body      String
-  activeVersionId String? @unique
-  activeVersion   TemplateVersion? @relation("ActiveTemplateVersion", fields: [activeVersionId], references: [id])
-  versions TemplateVersion[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String            @id @default(cuid())
+  project         Project           @relation(fields: [projectId], references: [id])
+  projectId       String
+  name            String
+  subject         String
+  body            String
+  activeVersionId String?           @unique
+  activeVersion   TemplateVersion?  @relation("ActiveTemplateVersion", fields: [activeVersionId], references: [id])
+  versions        TemplateVersion[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   @@index([projectId])
 }
 
 model TemplateVersion {
-  id             String    @id @default(cuid())
-  template       Template  @relation(fields: [templateId], references: [id])
-  templateId     String
-  parentVersion  TemplateVersion? @relation("TemplateVersionParent", fields: [parentVersionId], references: [id])
-  parentVersionId String?
-  children       TemplateVersion[] @relation("TemplateVersionParent")
-  activeForTemplate Template? @relation("ActiveTemplateVersion")
-  type           TemplateType @default(HTML)
-  source         TemplateSource @default(AI)
-  title          String
-  description    String?
-  htmlContent    String?
-  textContent    String?
-  metadataJson   Json?
-  isActive       Boolean   @default(false)
+  id                  String            @id @default(cuid())
+  template            Template          @relation(fields: [templateId], references: [id])
+  templateId          String
+  parentVersion       TemplateVersion?  @relation("TemplateVersionParent", fields: [parentVersionId], references: [id])
+  parentVersionId     String?
+  children            TemplateVersion[] @relation("TemplateVersionParent")
+  activeForTemplate   Template?         @relation("ActiveTemplateVersion")
+  type                TemplateType      @default(HTML)
+  source              TemplateSource    @default(AI)
+  title               String
+  description         String?
+  htmlContent         String?
+  textContent         String?
+  metadataJson        Json?
+  isActive            Boolean           @default(false)
   createdByAiProvider String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
   @@index([templateId])
 }

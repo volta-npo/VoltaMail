@@ -1,12 +1,34 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
+import compression from 'compression';
 import { AppModule } from './app.module.js';
 import type { NextFunction, Request, Response } from 'express';
 
 export async function createApp() {
   const app = await NestFactory.create(AppModule);
+
+  // Enable compression for response payloads
+  app.use(compression());
+
   app.use(cookieParser());
+
+  // Add request correlation ID middleware
+  app.use((req: any, res: Response, next: NextFunction) => {
+    const correlationId = req.headers['x-correlation-id'] || `req_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    req.correlationId = correlationId;
+    res.setHeader('X-Correlation-ID', correlationId);
+    next();
+  });
+
+  // Add security headers
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    next();
+  });
 
   const rawPrefix = (process.env.NEST_GLOBAL_PREFIX ?? 'api').trim();
   const normalizedPrefix = rawPrefix.replace(/^\/+/, '').replace(/\/+$/, '');
@@ -147,7 +169,8 @@ export async function createApp() {
           console.warn('[CORS] Blocked origin', origin);
           callback(new Error(`Origin ${origin} not allowed by CORS`));
         },
-    credentials: true
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID']
   });
 
   app.useGlobalPipes(

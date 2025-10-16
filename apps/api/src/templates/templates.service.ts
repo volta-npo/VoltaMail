@@ -46,7 +46,17 @@ export class TemplatesService {
     private readonly aiConfig: AiConfigService
   ) {}
 
-  private async runWithTimeout<T>(promise: Promise<T>, message: string, timeoutMs = 25000): Promise<T> {
+  private calculateTimeout(leadsCount: number, provider?: string): number {
+    const baseTimeout = 15000; // 15 seconds
+    const isFreeModel = provider === 'openrouter' || !provider;
+    const timeoutPerLead = isFreeModel ? 8000 : 5000; // 8s for free, 5s for paid
+    const maxTimeout = 120000; // 2 minutes max
+
+    const calculated = baseTimeout + (leadsCount * timeoutPerLead);
+    return Math.min(calculated, maxTimeout);
+  }
+
+  private async runWithTimeout<T>(promise: Promise<T>, message: string, timeoutMs: number): Promise<T> {
     let timeoutId: NodeJS.Timeout | undefined;
     try {
       const timeoutPromise = new Promise<never>((_, reject) => {
@@ -61,6 +71,26 @@ export class TemplatesService {
         clearTimeout(timeoutId);
       }
     }
+  }
+
+  private getWorkerCount(provider?: string, leadsCount?: number): number {
+    const configuredConcurrency = Number.parseInt(process.env.AI_DRAFT_CONCURRENCY ?? '', 10);
+    let defaultConcurrency = 4;
+
+    // Adjust based on provider
+    if (provider === 'openrouter') {
+      defaultConcurrency = 2; // Rate limiting for free models
+    } else if (provider === 'gemini') {
+      defaultConcurrency = 3;
+    } else {
+      defaultConcurrency = 6; // Paid models can handle more
+    }
+
+    const maxConcurrency = Number.isFinite(configuredConcurrency) && configuredConcurrency > 0
+      ? configuredConcurrency
+      : defaultConcurrency;
+
+    return leadsCount ? Math.min(Math.max(1, maxConcurrency), leadsCount) : maxConcurrency;
   }
 
   async listTemplates(projectId: string, user: AuthenticatedUser): Promise<TemplateSummary[]> {
@@ -283,6 +313,9 @@ export class TemplatesService {
         }
       });
 
+      const timeoutMs = this.calculateTimeout(1, generationConfig.provider);
+      const timeoutSeconds = Math.round(timeoutMs / 1000);
+
       const raw = await this.runWithTimeout(
         this.aiClient.generate({
           provider: generationConfig.provider,
@@ -291,7 +324,8 @@ export class TemplatesService {
           model: generationConfig.model,
           apiKey: generationConfig.apiKey
         }),
-        'AI took too long to generate a draft. Please try again.'
+        `AI generation timed out after ${timeoutSeconds}s. Try: (1) Reduce lead count (currently: ${leads.length}), (2) Simplify knowledge base, or (3) Switch to a faster model.`,
+        timeoutMs
       );
 
       const { subject, body, html } = parseAiResponse(raw);
@@ -314,12 +348,7 @@ export class TemplatesService {
       };
     };
 
-    const configuredConcurrency = Number.parseInt(process.env.AI_DRAFT_CONCURRENCY ?? '', 10);
-    const maxConcurrency = Number.isFinite(configuredConcurrency) && configuredConcurrency > 0
-      ? configuredConcurrency
-      : 4;
-
-    const workerCount = Math.min(Math.max(1, maxConcurrency), leads.length);
+    const workerCount = this.getWorkerCount(generationConfig.provider, leads.length);
     const results: AiDraftResult[] = new Array(leads.length);
     let nextIndex = 0;
 
@@ -400,6 +429,9 @@ export class TemplatesService {
 
     const generationConfig = await this.aiConfig.resolveGenerationConfig(user.organizationId);
 
+    const timeoutMs = this.calculateTimeout(1, generationConfig.provider);
+    const timeoutSeconds = Math.round(timeoutMs / 1000);
+
     const raw = await this.runWithTimeout(
       this.aiClient.generate({
         provider: generationConfig.provider,
@@ -408,7 +440,8 @@ export class TemplatesService {
         model: generationConfig.model,
         apiKey: generationConfig.apiKey
       }),
-      'AI took too long to suggest a template. Try again with fewer leads or retry in a moment.'
+      `AI generation timed out after ${timeoutSeconds}s. Try: (1) Reduce lead count, (2) Simplify knowledge base, or (3) Switch to a faster model.`,
+      timeoutMs
     );
 
     return parseChatResponse(raw);
@@ -530,6 +563,9 @@ export class TemplatesService {
       dto.model
     );
 
+    const timeoutMs = this.calculateTimeout(leads.length, generationConfig.provider);
+    const timeoutSeconds = Math.round(timeoutMs / 1000);
+
     const raw = await this.runWithTimeout(
       this.aiClient.generate({
         provider: generationConfig.provider,
@@ -538,7 +574,8 @@ export class TemplatesService {
         model: generationConfig.model,
         apiKey: generationConfig.apiKey
       }),
-      'AI took too long to draft a template. Please retry with fewer leads.'
+      `AI generation timed out after ${timeoutSeconds}s. Try: (1) Reduce lead count (currently: ${leads.length}), (2) Simplify knowledge base, or (3) Switch to a faster model.`,
+      timeoutMs
     );
 
     const suggestion = parseAiResponse(raw);
@@ -926,6 +963,9 @@ export class TemplatesService {
         instructions: dto.instructions
       });
 
+      const timeoutMs = this.calculateTimeout(1, generationConfig.provider);
+      const timeoutSeconds = Math.round(timeoutMs / 1000);
+
       const raw = await this.runWithTimeout(
         this.aiClient.generate({
           provider: generationConfig.provider,
@@ -934,7 +974,8 @@ export class TemplatesService {
           model: generationConfig.model,
           apiKey: generationConfig.apiKey
         }),
-        'AI took too long to iterate on the draft. Please try again.'
+        `AI generation timed out after ${timeoutSeconds}s. Try: (1) Reduce lead count (currently: ${dto.targets.length}), (2) Simplify knowledge base, or (3) Switch to a faster model.`,
+        timeoutMs
       );
 
       const { subject, body, html } = parseAiResponse(raw);
