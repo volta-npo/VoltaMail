@@ -4,7 +4,7 @@ import Redis, { Redis as RedisClient } from 'ioredis';
 
 @Injectable()
 export class CacheService implements OnModuleInit, OnModuleDestroy {
-  private client: RedisClient;
+  private client!: RedisClient;
   private isConnected = false;
 
   constructor(private readonly configService: ConfigService) {}

@@ -13,8 +13,8 @@ COPY packages packages
 # Install all dependencies (including dev dependencies for build)
 RUN pnpm install --frozen-lockfile
 
-# Generate Prisma Client in build stage
-RUN pnpm --filter @email-automation/database db:generate
+# Generate Prisma Client in build stage (run in database package directory)
+RUN cd packages/database && npx prisma generate
 
 # Build the API
 RUN pnpm --filter @email-automation/api build
@@ -34,8 +34,8 @@ COPY packages packages
 # Install production dependencies only
 RUN pnpm install --filter @email-automation/api --prod --frozen-lockfile
 
-# Generate Prisma Client in runtime stage (important!)
-RUN pnpm --filter @email-automation/database db:generate
+# Generate Prisma Client in runtime stage (run in database package directory)
+RUN cd packages/database && npx prisma generate
 
 # Copy built application from build stage
 COPY --from=build /app/apps/api/dist apps/api/dist
