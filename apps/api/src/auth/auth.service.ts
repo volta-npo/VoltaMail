@@ -114,7 +114,11 @@ export class AuthService {
       }
     });
 
-    if (!user?.passwordHash) {
+    if (!user) {
+      throw new BadRequestException('Invalid credentials');
+    }
+
+    if (!user.passwordHash) {
       throw new BadRequestException('Invalid credentials');
     }
 

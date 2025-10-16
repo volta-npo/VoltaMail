@@ -34,6 +34,10 @@ COPY packages packages
 # Install production dependencies only
 RUN pnpm install --filter @email-automation/api --prod --frozen-lockfile
 
+# Copy generated Prisma Client from build stage
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
+
 # Generate Prisma Client in runtime stage (run in database package directory)
 RUN cd packages/database && npx prisma generate
 
