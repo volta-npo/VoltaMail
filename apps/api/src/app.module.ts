@@ -7,6 +7,7 @@ import { HealthController } from './health.controller.js';
 import { GmailModule } from './gmail/gmail.module.js';
 import { LeadsModule } from './leads/leads.module.js';
 import { TemplatesModule } from './templates/templates.module.js';
+import { CacheModule } from './cache/cache.module.js';
 import { ProjectSettingsController } from './projects/project-settings.controller.js';
 import { OrganizationSettingsController } from './organizations/organization-settings.controller.js';
 import { TokenCipherService } from './security/token-cipher.service.js';
@@ -36,6 +37,7 @@ import { AiClientService } from './ai/ai-client.service.js';
         limit: 100 // 100 requests per minute
       }
     ]),
+    CacheModule,
     AuthModule,
     GmailModule,
     LeadsModule,
