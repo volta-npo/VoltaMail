@@ -526,10 +526,10 @@ export class TemplatesService {
     );
     const resolvedProvider = generationConfig.provider ?? dto.provider ?? 'openrouter';
 
-    const defaultSample = resolvedProvider === 'openrouter' ? 3 : 8;
+    const defaultSample = resolvedProvider === 'openrouter' ? 2 : 8;
     const requestedSampleSize = dto.leadSampleSize ?? defaultSample;
-    const maxSampleSize = resolvedProvider === 'openrouter' ? 5 : 25;
-    const sampleSize = Math.max(1, Math.min(requestedSampleSize, maxSampleSize));
+    const maxSampleSize = resolvedProvider === 'openrouter' ? 3 : 25;
+    const sampleSize = Math.max(0, Math.min(requestedSampleSize, maxSampleSize));
 
     let leads: Array<{
       email: string;
@@ -555,21 +555,26 @@ export class TemplatesService {
       throw new BadRequestException('Import leads before asking AI to include lead insights in the template.');
     }
 
-    const knowledgeBase = dto.knowledgeBase && dto.knowledgeBase.trim().length > 0
+    const knowledgeBaseRaw = dto.knowledgeBase && dto.knowledgeBase.trim().length > 0
       ? dto.knowledgeBase
       : buildKnowledgeBase(project.brandingJson);
 
+    const maxKnowledgeLength = resolvedProvider === 'openrouter' ? 4000 : 8000;
+    const knowledgeBase = knowledgeBaseRaw.length > maxKnowledgeLength
+      ? `${knowledgeBaseRaw.slice(0, maxKnowledgeLength)}\n\n[Knowledge base truncated to fit AI provider limits.]`
+      : knowledgeBaseRaw;
+
     const leadSummary = hasLeads
-      ? leads.map((lead) => ({
+      ? leads.slice(0, resolvedProvider === 'openrouter' ? 2 : leads.length).map((lead) => ({
           email: lead.email,
-          first_name: lead.firstName,
-          last_name: lead.lastName,
-          company: lead.company,
-          role: lead.role,
-          timezone: lead.timezone,
-          notes:
+          first_name: lead.firstName ?? undefined,
+          company: lead.company ?? undefined,
+          role: lead.role ?? undefined,
+          insights:
             lead.customJson && typeof lead.customJson === 'object' && !Array.isArray(lead.customJson)
-              ? lead.customJson
+              ? Object.entries(lead.customJson)
+                  .slice(0, 3)
+                  .map(([key, value]) => `${key}: ${String(value).slice(0, 120)}`)
               : undefined
         }))
       : null;
