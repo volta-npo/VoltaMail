@@ -32,13 +32,13 @@ RUN apk add --no-cache openssl libstdc++
 
 # Copy workspace configuration
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
-COPY apps/api/package.json apps/api/package.json
 COPY packages packages
+COPY apps/api/package.json apps/api/package.json
 
-# Install production dependencies only
-RUN pnpm install --filter @email-automation/api --prod --frozen-lockfile
+# Install production dependencies for workspace
+RUN pnpm install --prod --frozen-lockfile
 
-# Generate Prisma Client in runtime stage (run in database package directory)
+# Generate Prisma Client in runtime stage
 RUN cd packages/database && npx prisma generate
 
 # Copy built application from build stage
