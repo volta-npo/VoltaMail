@@ -620,12 +620,15 @@ export class TemplatesService {
       ? dto.knowledgeBase
       : buildKnowledgeBase(project.brandingJson);
 
-    const knowledgeBase = await this.compressKnowledgeBase(
-      knowledgeBaseRaw,
-      resolvedProvider,
-      generationConfig.model,
-      generationConfig.apiKey
-    );
+    const knowledgeBase =
+      resolvedProvider === 'gemini'
+        ? knowledgeBaseRaw.slice(0, 8000)
+        : await this.compressKnowledgeBase(
+            knowledgeBaseRaw,
+            resolvedProvider,
+            generationConfig.model,
+            generationConfig.apiKey
+          );
 
     const leadSummary = hasLeads
       ? leads.slice(0, resolvedProvider === 'openrouter' ? 2 : leads.length).map((lead) => ({

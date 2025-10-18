@@ -33,7 +33,7 @@ interface GeminiResponse {
 export const DEFAULT_MODELS: Record<Provider, string> = {
   openrouter: 'z-ai/glm-4.5-air:free',
   openai: 'gpt-4o-mini',
-  gemini: 'gemini-1.5-flash'
+  gemini: 'gemini-2.5-flash'
 };
 
 // Default fetch timeouts per provider (in milliseconds)
