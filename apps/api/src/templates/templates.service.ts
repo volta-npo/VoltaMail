@@ -47,10 +47,10 @@ export class TemplatesService {
   ) {}
 
   private calculateTimeout(leadsCount: number, provider?: string): number {
-    const baseTimeout = 10000; // 10 seconds
+    const baseTimeout = 8000; // 8 seconds
     const isFreeModel = provider === 'openrouter' || !provider;
-    const timeoutPerLead = isFreeModel ? 4000 : 3000; // 4s for free, 3s for paid
-    const maxTimeout = 25000; // 25 seconds max (Heroku hard limit is 30s)
+    const timeoutPerLead = isFreeModel ? 3500 : 2500; // 3.5s for free, 2.5s for paid
+    const maxTimeout = 27000; // 27 seconds max (Heroku hard limit is 30s)
 
     const calculated = baseTimeout + (leadsCount * timeoutPerLead);
     return Math.min(calculated, maxTimeout);
