@@ -170,7 +170,7 @@ export async function createApp() {
           callback(new Error(`Origin ${origin} not allowed by CORS`));
         },
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID', 'x-session-token']
   });
 
   app.useGlobalPipes(
