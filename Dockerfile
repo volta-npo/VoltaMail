@@ -16,6 +16,10 @@ RUN pnpm install --frozen-lockfile
 # Generate Prisma Client in build stage (run in database package directory)
 RUN cd packages/database && npx prisma generate
 
+# Build the shared and database packages first (required dependencies for API)
+RUN pnpm --filter @email-automation/database build
+RUN pnpm --filter @email-automation/shared build
+
 # Build the API
 RUN pnpm --filter @email-automation/api build
 
