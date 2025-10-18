@@ -1253,6 +1253,41 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
         throw new Error(await extractErrorMessage(response));
       }
 
+      if (aiProvider === 'gemini' && response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let accumulated = '';
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) {
+            break;
+          }
+          accumulated += decoder.decode(value, { stream: true });
+        }
+
+        const trimmed = accumulated.trim();
+        if (!trimmed) {
+          throw new Error('Empty streamed AI response.');
+        }
+
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (parsed.subject && parsed.subject.trim().length > 0) {
+            setSubject(parsed.subject);
+          }
+          if (parsed.body && parsed.body.trim().length > 0) {
+            setBody(parsed.body);
+          }
+          if (!name || name.trim().length === 0) {
+            setName('AI Draft');
+          }
+          setSuccess('Drafted template copy with AI. Review and tweak before saving.');
+          return;
+        } catch {
+          throw new Error('Failed to parse streamed AI response.');
+        }
+      }
+
       const suggestion = (await response.json()) as AiTemplateSuggestion;
       if (suggestion.subject && suggestion.subject.trim().length > 0) {
         setSubject(suggestion.subject);

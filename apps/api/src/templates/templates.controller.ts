@@ -7,10 +7,12 @@ import {
   Put,
   Delete,
   Req,
+  Res,
   UseGuards,
   BadRequestException,
   Logger
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { TemplatesService } from './templates.service.js';
 import { SessionGuard } from '../auth/session.guard.js';
 import { AuthenticatedRequest } from '../auth/authenticated-request.js';
@@ -127,22 +129,57 @@ export class TemplatesController {
   async suggestTemplate(
     @Param('projectId') projectId: string,
     @Body() body: SuggestTemplateDto,
-    @Req() request: AuthenticatedRequest
-  ): Promise<AiTemplateSuggestion> {
+    @Req() request: AuthenticatedRequest,
+    @Res() res: Response
+  ): Promise<void> {
     try {
       this.logger.debug(
         `[suggest] Processing for project: ${projectId}, provider: ${body.provider}, leadSampleSize: ${body.leadSampleSize}`
       );
-      const result = await this.templatesService.suggestTemplate(projectId, body, request.auth!.user);
+
+      const { provider, stream } = await this.templatesService.prepareSuggestionStream(
+        projectId,
+        body,
+        request.auth!.user
+      );
+
+      if (provider !== 'gemini') {
+        let fullText = '';
+        for await (const chunk of stream) {
+          fullText += chunk;
+        }
+        res.json(JSON.parse(fullText));
+        this.logger.debug(`[suggest] Success for project: ${projectId}`);
+        return;
+      }
+
+      res.set({
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+        'Transfer-Encoding': 'chunked'
+      });
+      res.flushHeaders();
+
+      res.write('{"subject":"","body":"');
+      for await (const chunk of stream) {
+        const safeChunk = chunk.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
+        res.write(safeChunk);
+        res.flush?.();
+      }
+      res.write('"}');
+      res.end();
       this.logger.debug(`[suggest] Success for project: ${projectId}`);
-      return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(
         `[suggest] Failed for project ${projectId}: ${errorMessage}`,
         error instanceof Error ? error.stack : ''
       );
-      throw error;
+      if (!res.headersSent) {
+        throw error;
+      }
+      res.end();
     }
   }
 

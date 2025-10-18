@@ -506,6 +506,67 @@ export class TemplatesService {
     dto: SuggestTemplateDto,
     user: AuthenticatedUser
   ): Promise<AiTemplateSuggestion> {
+    const { stream } = await this.prepareSuggestionStream(projectId, dto, user);
+    let fullText = '';
+    for await (const chunk of stream) {
+      fullText += chunk;
+    }
+
+    const suggestion = parseAiResponse(fullText);
+
+    return {
+      subject: suggestion.subject,
+      body: suggestion.body
+    };
+  }
+
+  async prepareSuggestionStream(
+    projectId: string,
+    dto: SuggestTemplateDto,
+    user: AuthenticatedUser
+  ): Promise<{ provider: 'openrouter' | 'openai' | 'gemini'; stream: AsyncGenerator<string> }> {
+    const context = await this.buildSuggestionContext(projectId, dto, user);
+
+    if (context.provider === 'gemini') {
+      const stream = this.aiClient.streamGenerate({
+        provider: context.provider,
+        systemPrompt: context.systemPrompt,
+        userPrompt: context.userPrompt,
+        model: context.model,
+        apiKey: context.apiKey,
+        timeoutMs: context.timeoutMs
+      });
+      return { provider: context.provider, stream };
+    }
+
+    const result = await this.aiClient.generate({
+      provider: context.provider,
+      systemPrompt: context.systemPrompt,
+      userPrompt: context.userPrompt,
+      model: context.model,
+      apiKey: context.apiKey,
+      timeoutMs: context.timeoutMs
+    });
+
+    async function* singleChunk() {
+      yield result;
+    }
+
+    return { provider: context.provider, stream: singleChunk() };
+  }
+
+  private async buildSuggestionContext(
+    projectId: string,
+    dto: SuggestTemplateDto,
+    user: AuthenticatedUser
+  ): Promise<{
+    provider: 'openrouter' | 'openai' | 'gemini';
+    model: string;
+    apiKey: string | null;
+    systemPrompt: string;
+    userPrompt: string;
+    timeoutMs: number;
+  }> {
     await this.projectAccess.ensureProjectAccess(projectId, user);
 
     const project = await this.prisma.project.findUnique({
@@ -551,7 +612,7 @@ export class TemplatesService {
 
     const hasLeads = leads.length > 0;
 
-    if (!hasLeads && sampleSize > 0) {
+    if (!hasLeads && sampleSize > 0 && resolvedProvider !== 'gemini') {
       throw new BadRequestException('Import leads before asking AI to include lead insights in the template.');
     }
 
@@ -559,10 +620,12 @@ export class TemplatesService {
       ? dto.knowledgeBase
       : buildKnowledgeBase(project.brandingJson);
 
-    const maxKnowledgeLength = resolvedProvider === 'openrouter' ? 4000 : 8000;
-    const knowledgeBase = knowledgeBaseRaw.length > maxKnowledgeLength
-      ? `${knowledgeBaseRaw.slice(0, maxKnowledgeLength)}\n\n[Knowledge base truncated to fit AI provider limits.]`
-      : knowledgeBaseRaw;
+    const knowledgeBase = await this.compressKnowledgeBase(
+      knowledgeBaseRaw,
+      resolvedProvider,
+      generationConfig.model,
+      generationConfig.apiKey
+    );
 
     const leadSummary = hasLeads
       ? leads.slice(0, resolvedProvider === 'openrouter' ? 2 : leads.length).map((lead) => ({
@@ -592,34 +655,49 @@ export class TemplatesService {
     const userPrompt = `${dataSections.join('\n\n')}\n\nInstructions:\n- Draft a single reusable outreach template with a compelling subject line and body.\n- Use handlebars-style placeholders like {{first_name}}, {{company}}, {{role}}, {{pain_point}} when referencing lead attributes.\n- Keep body under 180 words, conversational but professional, and end with one clear CTA.\n- Return valid JSON with keys "subject" and "body".`;
 
     const timeoutMs = this.calculateTimeout(leads.length || 1, generationConfig.provider);
-    const timeoutSeconds = Math.round(timeoutMs / 1000);
-
-    let raw: string;
-    try {
-      raw = await this.aiClient.generate({
-        provider: generationConfig.provider,
-        systemPrompt,
-        userPrompt,
-        model: generationConfig.model,
-        apiKey: generationConfig.apiKey,
-        timeoutMs
-      });
-    } catch (error) {
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      const message = error instanceof Error ? error.message : String(error);
-      throw new BadRequestException(
-        `AI generation failed: ${message} Try reducing the number of leads (currently: ${leads.length}).`
-      );
-    }
-
-    const suggestion = parseAiResponse(raw);
 
     return {
-      subject: suggestion.subject,
-      body: suggestion.body
+      provider: resolvedProvider,
+      model: generationConfig.model,
+      apiKey: generationConfig.apiKey,
+      systemPrompt,
+      userPrompt,
+      timeoutMs
     };
+  }
+
+  private async compressKnowledgeBase(
+    knowledgeBase: string,
+    provider: 'openrouter' | 'openai' | 'gemini',
+    model: string,
+    apiKey: string | null
+  ): Promise<string> {
+    const limit = provider === 'openrouter' ? 4000 : 8000;
+    if (knowledgeBase.length <= limit) {
+      return knowledgeBase;
+    }
+
+    const systemPrompt =
+      'You are a research assistant that condenses brand knowledge into concise, information-rich bullet points for outbound email writing.';
+    const userPrompt = `Original knowledge base (over ${limit} characters):\n${knowledgeBase}\n\nInstructions:\n- Summarize the most important value props, ICP, tone guidance, proof points, and objections.\n- Keep the result under ${Math.floor(limit * 0.9)} characters.\n- Use short paragraphs or bullet points for readability.`;
+
+    try {
+      const compressed = await this.aiClient.generate({
+        provider,
+        systemPrompt,
+        userPrompt,
+        model,
+        apiKey,
+        timeoutMs: Math.min(15000, this.calculateTimeout(1, provider))
+      });
+      if (compressed && compressed.length < knowledgeBase.length) {
+        return compressed.slice(0, limit);
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to compress knowledge base: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    return knowledgeBase.slice(0, limit);
   }
 
   async sendBulkDrafts(
