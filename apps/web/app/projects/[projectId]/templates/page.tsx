@@ -1036,7 +1036,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 28000); // 28 second timeout (Heroku 30s limit - 2s buffer)
 
     try {
       const response = await fetch(`${API_BASE_URL}/v1/templates/${selectedId}/generate`, {
@@ -1103,7 +1103,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
       let errorMessage = "Failed to generate AI drafts";
       if (aiError instanceof Error) {
         if (aiError.name === 'AbortError') {
-          errorMessage = "AI generation timed out after 2 minutes. The AI provider is taking too long. Try reducing the number of leads or switching to a different AI provider.";
+          errorMessage = "AI generation timed out. The AI provider took too long. Try reducing the number of leads or switching to a different AI provider.";
         } else {
           errorMessage = aiError.message;
         }
@@ -1149,7 +1149,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
     setChatLoading(true);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 28000); // 28 second timeout (Heroku 30s limit - 2s buffer)
 
     try {
       const response = await fetch(`${API_BASE_URL}/v1/templates/${templateId}/chat`, {
@@ -1182,7 +1182,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
       let errorMessage = "Chat request failed";
       if (chatErr instanceof Error) {
         if (chatErr.name === 'AbortError') {
-          errorMessage = "Chat request timed out after 2 minutes. The AI is taking too long. Try simplifying your message or the template.";
+          errorMessage = "Chat request timed out. The AI took too long. Try simplifying your message or the template.";
         } else {
           errorMessage = chatErr.message;
         }
@@ -1228,7 +1228,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
     setSuccess(null);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 28000); // 28 second timeout (Heroku 30s limit - 2s buffer)
 
     try {
       const response = await fetch(`${API_BASE_URL}/v1/projects/${projectId}/templates/suggest`, {
@@ -1268,7 +1268,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
       let errorMessage = "Failed to generate AI template";
       if (bundleError instanceof Error) {
         if (bundleError.name === 'AbortError') {
-          errorMessage = "AI request timed out after 2 minutes. The AI provider is taking too long. Try reducing the number of leads, simplifying your knowledge base, or switching to a different AI provider.";
+          errorMessage = "AI request timed out. The AI provider took too long. Try reducing the number of leads, simplifying your knowledge base, or switching to a different AI provider.";
         } else {
           // Check if the error message contains helpful backend info
           const msg = bundleError.message;
