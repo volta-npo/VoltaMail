@@ -519,7 +519,16 @@ export class TemplatesService {
       throw new NotFoundException('Project not found');
     }
 
-    const sampleSize = Math.min(dto.leadSampleSize ?? 10, 25);
+    const generationConfig = await this.aiConfig.resolveGenerationConfig(
+      user.organizationId,
+      dto.provider,
+      dto.model
+    );
+    const resolvedProvider = generationConfig.provider ?? dto.provider ?? 'openrouter';
+
+    const requestedSampleSize = dto.leadSampleSize ?? (resolvedProvider === 'openrouter' ? 5 : 10);
+    const maxSampleSize = resolvedProvider === 'openrouter' ? 5 : 25;
+    const sampleSize = Math.max(3, Math.min(requestedSampleSize, maxSampleSize));
 
     const leads = await this.prisma.lead.findMany({
       where: { projectId },
@@ -556,12 +565,6 @@ export class TemplatesService {
       null,
       2
     )}\n\nInstructions:\n- Draft a single reusable outreach template with a compelling subject line and body.\n- Use handlebars-style placeholders like {{first_name}}, {{company}}, {{role}}, {{pain_point}} when referencing lead attributes.\n- Keep body under 180 words, conversational but professional, and end with one clear CTA.\n- Return valid JSON with keys "subject" and "body".`;
-
-    const generationConfig = await this.aiConfig.resolveGenerationConfig(
-      user.organizationId,
-      dto.provider,
-      dto.model
-    );
 
     const timeoutMs = this.calculateTimeout(leads.length, generationConfig.provider);
     const timeoutSeconds = Math.round(timeoutMs / 1000);
