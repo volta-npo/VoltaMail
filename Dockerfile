@@ -30,22 +30,11 @@ WORKDIR /app
 RUN corepack enable
 RUN apk add --no-cache openssl libstdc++
 
-# Copy workspace configuration
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
-COPY packages packages
-COPY apps/api/package.json apps/api/package.json
-
-# Install production dependencies for workspace
-RUN pnpm install --prod --frozen-lockfile
-
-# Generate Prisma Client in runtime stage
-RUN cd packages/database && npx prisma generate
-
-# Copy built application from build stage
+# Copy the entire monorepo structure
+COPY --from=build /app/node_modules node_modules
 COPY --from=build /app/apps/api/dist apps/api/dist
-
-# Copy Prisma schema for runtime migrations
-COPY --from=build /app/packages/database/prisma packages/database/prisma
+COPY --from=build /app/packages packages
+COPY --from=build /app/apps/api/node_modules apps/api/node_modules
 
 ENV NODE_ENV=production
 EXPOSE 4000
