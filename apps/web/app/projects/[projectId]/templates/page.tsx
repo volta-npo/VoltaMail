@@ -1035,9 +1035,13 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
       setAiDrafts(null);
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout
+
     try {
       const response = await fetch(`${API_BASE_URL}/v1/templates/${selectedId}/generate`, {
         method: "POST",
+        signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
           "x-session-token": sessionToken ?? ""
@@ -1096,8 +1100,17 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
 
       setSuccess(baseMessage);
     } catch (aiError) {
-      setError(aiError instanceof Error ? aiError.message : "Failed to generate AI drafts");
+      let errorMessage = "Failed to generate AI drafts";
+      if (aiError instanceof Error) {
+        if (aiError.name === 'AbortError') {
+          errorMessage = "AI generation timed out after 2 minutes. The AI provider is taking too long. Try reducing the number of leads or switching to a different AI provider.";
+        } else {
+          errorMessage = aiError.message;
+        }
+      }
+      setError(errorMessage);
     } finally {
+      clearTimeout(timeoutId);
       setGeneratingAi(false);
     }
   };
@@ -1135,9 +1148,13 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
     setChatHistory(nextHistory);
     setChatLoading(true);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout
+
     try {
       const response = await fetch(`${API_BASE_URL}/v1/templates/${templateId}/chat`, {
         method: "POST",
+        signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
           "x-session-token": sessionToken ?? ""
@@ -1162,9 +1179,18 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
         }
       ]);
     } catch (chatErr) {
-      setChatError(chatErr instanceof Error ? chatErr.message : "Chat request failed");
+      let errorMessage = "Chat request failed";
+      if (chatErr instanceof Error) {
+        if (chatErr.name === 'AbortError') {
+          errorMessage = "Chat request timed out after 2 minutes. The AI is taking too long. Try simplifying your message or the template.";
+        } else {
+          errorMessage = chatErr.message;
+        }
+      }
+      setChatError(errorMessage);
       setChatHistory((prev) => prev.slice(0, Math.max(prev.length - 1, 0)));
     } finally {
+      clearTimeout(timeoutId);
       setChatLoading(false);
     }
   };
@@ -1201,18 +1227,26 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
     setError(null);
     setSuccess(null);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout
+
     try {
       const response = await fetch(`${API_BASE_URL}/v1/projects/${projectId}/templates/suggest`, {
         method: "POST",
+        signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
           "x-session-token": sessionToken ?? ""
         },
-        body: JSON.stringify({
-          provider: aiProvider,
-          knowledgeBase: knowledgeBase.trim().length > 0 ? knowledgeBase : undefined,
-          instructions: strategyNotes.trim().length > 0 ? strategyNotes.trim() : undefined
-        })
+        body: JSON.stringify(
+          Object.fromEntries(
+            Object.entries({
+              provider: aiProvider,
+              knowledgeBase: knowledgeBase.trim().length > 0 ? knowledgeBase : undefined,
+              instructions: strategyNotes.trim().length > 0 ? strategyNotes.trim() : undefined
+            }).filter(([, value]) => value !== undefined)
+          )
+        )
       });
 
       if (!response.ok) {
@@ -1231,8 +1265,25 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
       }
       setSuccess('Drafted template copy with AI. Review and tweak before saving.');
     } catch (bundleError) {
-      setError(bundleError instanceof Error ? bundleError.message : "Failed to generate AI template");
+      let errorMessage = "Failed to generate AI template";
+      if (bundleError instanceof Error) {
+        if (bundleError.name === 'AbortError') {
+          errorMessage = "AI request timed out after 2 minutes. The AI provider is taking too long. Try reducing the number of leads, simplifying your knowledge base, or switching to a different AI provider.";
+        } else {
+          // Check if the error message contains helpful backend info
+          const msg = bundleError.message;
+          if (msg.includes("Import leads")) {
+            errorMessage = "⚠️ No leads imported. Please import leads first before asking AI to draft a template.";
+          } else if (msg.includes("API key") || msg.includes("not configured")) {
+            errorMessage = `⚠️ AI API key not configured. Go to Settings → AI Config to add your API key.`;
+          } else {
+            errorMessage = msg;
+          }
+        }
+      }
+      setError(errorMessage);
     } finally {
+      clearTimeout(timeoutId);
       setSuggestingTemplate(false);
     }
   };
@@ -1249,7 +1300,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
       return;
     }
 
-    const confirmed = window.confirm(`Delete “${templateToDelete.name}”? This cannot be undone.`);
+    const confirmed = window.confirm(`Delete "${templateToDelete.name}"? This cannot be undone.`);
     if (!confirmed) {
       return;
     }

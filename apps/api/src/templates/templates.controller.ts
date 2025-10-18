@@ -7,7 +7,9 @@ import {
   Put,
   Delete,
   Req,
-  UseGuards
+  UseGuards,
+  BadRequestException,
+  Logger
 } from '@nestjs/common';
 import { TemplatesService } from './templates.service.js';
 import { SessionGuard } from '../auth/session.guard.js';
@@ -35,6 +37,8 @@ import { TemplateChatDto } from './dto/template-chat.dto.js';
 
 @Controller('v1')
 export class TemplatesController {
+  private readonly logger = new Logger(TemplatesController.name);
+
   constructor(private readonly templatesService: TemplatesService) {}
 
   @Get('projects/:projectId/templates')
@@ -125,7 +129,21 @@ export class TemplatesController {
     @Body() body: SuggestTemplateDto,
     @Req() request: AuthenticatedRequest
   ): Promise<AiTemplateSuggestion> {
-    return this.templatesService.suggestTemplate(projectId, body, request.auth!.user);
+    try {
+      this.logger.debug(
+        `[suggest] Processing for project: ${projectId}, provider: ${body.provider}, leadSampleSize: ${body.leadSampleSize}`
+      );
+      const result = await this.templatesService.suggestTemplate(projectId, body, request.auth!.user);
+      this.logger.debug(`[suggest] Success for project: ${projectId}`);
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `[suggest] Failed for project ${projectId}: ${errorMessage}`,
+        error instanceof Error ? error.stack : ''
+      );
+      throw error;
+    }
   }
 
   @Post('projects/:projectId/templates/suggest-html')

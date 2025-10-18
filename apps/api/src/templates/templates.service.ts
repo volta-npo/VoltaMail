@@ -566,17 +566,27 @@ export class TemplatesService {
     const timeoutMs = this.calculateTimeout(leads.length, generationConfig.provider);
     const timeoutSeconds = Math.round(timeoutMs / 1000);
 
-    const raw = await this.runWithTimeout(
-      this.aiClient.generate({
+    let raw: string;
+    try {
+      raw = await this.aiClient.generate({
         provider: generationConfig.provider,
         systemPrompt,
         userPrompt,
         model: generationConfig.model,
-        apiKey: generationConfig.apiKey
-      }),
-      `AI generation timed out after ${timeoutSeconds}s. Try: (1) Reduce lead count (currently: ${leads.length}), (2) Simplify knowledge base, or (3) Switch to a faster model.`,
-      timeoutMs
-    );
+        apiKey: generationConfig.apiKey,
+        timeoutMs
+      });
+    } catch (error) {
+      // Re-throw with more context if it's already a BadRequestException with timeout info
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      // Catch any other errors and wrap with context
+      const message = error instanceof Error ? error.message : String(error);
+      throw new BadRequestException(
+        `AI generation failed: ${message} Try reducing the number of leads (currently: ${leads.length}).`
+      );
+    }
 
     const suggestion = parseAiResponse(raw);
 
