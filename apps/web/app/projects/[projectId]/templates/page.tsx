@@ -6,15 +6,16 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   AiDraftResult,
-  RenderedLeadPreview,
-  TemplateSummary,
-  GmailConnectionSummary,
-  LeadSummary,
-  SendDraftResponse,
+  AiProvider,
   AiTemplateSuggestion,
   BulkSendResponse,
-  TemplateVersionSummary,
+  GmailConnectionSummary,
   KnowledgeSource,
+  LeadSummary,
+  RenderedLeadPreview,
+  SendDraftResponse,
+  TemplateSummary,
+  TemplateVersionSummary,
   AiChatMessage
 } from "@email-automation/shared";
 import { TemplateDesigner, defaultDesignerState, TemplateDesignerState, buildHtmlFromDesigner } from "@/components/template-designer";
@@ -56,7 +57,7 @@ interface PersistedState {
     subject: string;
     body: string;
   };
-  aiProvider?: "openrouter" | "openai" | "gemini";
+  aiProvider?: AiProvider;
   aiDrafts?: AiDraftResult[];
   selectedLeadIds?: string[];
   leadSearch?: string;
@@ -94,8 +95,9 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
   const [subject, setSubject] = useState(DEFAULT_SUBJECT);
   const [body, setBody] = useState(DEFAULT_BODY);
   const [preview, setPreview] = useState<RenderedLeadPreview[] | null>(null);
-  const [aiDrafts, setAiDrafts] = useState<AiDraftResult[] | null>(null);
-  const [aiProvider, setAiProvider] = useState<'openrouter' | 'openai' | 'gemini'>('openrouter');
+const [aiDrafts, setAiDrafts] = useState<AiDraftResult[] | null>(null);
+const [aiProvider, setAiProvider] = useState<AiProvider | null>(null);
+const defaultProviderRef = useRef<AiProvider | null>(null);
   const [generatingAi, setGeneratingAi] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -242,53 +244,10 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
         if (parsed.selectedPresetId !== undefined) {
           setSelectedPresetId(parsed.selectedPresetId ?? null);
         }
-        if (parsed.aiProvider) {
-          setAiProvider(parsed.aiProvider);
-        }
-        if (parsed.aiDrafts) {
-          setAiDrafts(parsed.aiDrafts);
-        }
-        if (parsed.selectedLeadIds) {
-          setSelectedLeadIds(parsed.selectedLeadIds);
-        }
-        if (parsed.leadSearch) {
-          setLeadSearch(parsed.leadSearch);
-        }
-        if (parsed.selectedConnectionId) {
-          setSelectedConnectionId(parsed.selectedConnectionId);
-        }
-        if (parsed.sentLog) {
-          setSentLog(parsed.sentLog);
-        }
-        if (parsed.htmlDraft !== undefined) {
-          setHtmlDraft(parsed.htmlDraft);
-        }
-        if (parsed.activeTemplateVersionId !== undefined) {
-          setActiveTemplateVersionId(parsed.activeTemplateVersionId ?? null);
-        }
-        if (parsed.designerState) {
-          setDesignerState({ ...defaultDesignerState, ...parsed.designerState });
-        }
-        if (parsed.designMode) {
-          setDesignMode(parsed.designMode);
-        }
-        if (parsed.strategyNotes !== undefined) {
-          setStrategyNotes(parsed.strategyNotes);
-        }
-        if (parsed.htmlSuggestionNotes !== undefined) {
-          setHtmlSuggestionNotes(parsed.htmlSuggestionNotes);
-        }
-        if (parsed.chatHistory) {
-          setChatHistory(parsed.chatHistory);
-        }
-        if (typeof parsed.enhancedPersonalization === "boolean") {
-          setEnhancedPersonalization(parsed.enhancedPersonalization);
-        }
-        if (typeof parsed.allowToolUse === "boolean") {
-          setAllowToolUse(parsed.allowToolUse);
-        }
-        if (typeof parsed.bulkSendEnabled === "boolean") {
-          setBulkSendEnabled(parsed.bulkSendEnabled);
+        const parsedVersion = parsed.version ?? 1;
+        const persistedProvider = parsedVersion >= 3 ? parsed.aiProvider ?? null : null;
+        if (persistedProvider && persistedProvider !== 'openrouter') {
+          setAiProvider(persistedProvider);
         }
       } else {
         persistedRef.current = null;
@@ -546,7 +505,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
         subject,
         body
       },
-      aiProvider,
+      aiProvider: aiProvider ?? undefined,
       aiDrafts: aiDrafts ?? undefined,
       selectedLeadIds: selectedLeadIds.length > 0 ? selectedLeadIds : undefined,
       leadSearch: leadSearch ? leadSearch : undefined,
@@ -1048,7 +1007,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
         },
         body: JSON.stringify({
           sampleSize,
-          provider: aiProvider,
+          provider: aiProvider ?? defaultProviderRef.current,
           leadIds: effectiveLeadIds,
           enhancedPersonalization: enhancedPersonalization || undefined,
           allowToolUse: enhancedPersonalization ? allowToolUse : undefined
@@ -1227,6 +1186,13 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
     setError(null);
     setSuccess(null);
 
+    const provider = resolveProvider();
+    if (!provider) {
+      setSuggestingTemplate(false);
+      setError('AI provider still loading. Please wait a moment and try again.');
+      return;
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 28000); // 28 second timeout (Heroku 30s limit - 2s buffer)
 
@@ -1241,7 +1207,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
         body: JSON.stringify(
           Object.fromEntries(
             Object.entries({
-              provider: aiProvider,
+              provider,
               knowledgeBase: knowledgeBase.trim().length > 0 ? knowledgeBase : undefined,
               instructions: strategyNotes.trim().length > 0 ? strategyNotes.trim() : undefined
             }).filter(([, value]) => value !== undefined)
@@ -1253,16 +1219,17 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
         throw new Error(await extractErrorMessage(response));
       }
 
-      if (aiProvider === 'gemini' && response.body) {
+      if ((provider === 'gemini' && response.body) || (provider === 'openrouter' && response.body)) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let accumulated = '';
-        while (true) {
+        let doneReading = false;
+        while (!doneReading) {
           const { value, done } = await reader.read();
-          if (done) {
-            break;
+          doneReading = done;
+          if (value) {
+            accumulated += decoder.decode(value, { stream: !done });
           }
-          accumulated += decoder.decode(value, { stream: true });
         }
 
         const trimmed = accumulated.trim();
@@ -1992,23 +1959,16 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
     setError(null);
     setSuccess(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/v1/templates/${selectedId}/iterate-drafts`, {
+      const response = await fetch(`${API_BASE_URL}/v1/templates/${selectedId}/iterate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-session-token": sessionToken ?? ""
         },
         body: JSON.stringify({
-          templateVersionId: draft.templateVersionId ?? activeVersion?.id ?? activeTemplateVersionId ?? undefined,
-          instructions: instructionPayload,
-          provider: aiProvider,
-          targets: [
-            {
-              leadId: draft.leadId,
-              lastDraftHtml: draft.html ?? undefined,
-              lastDraftText: draft.body
-            }
-          ]
+          leadIds: [draft.leadId],
+          notes: instructionPayload,
+          provider: aiProvider ?? defaultProviderRef.current
         })
       });
 
@@ -2053,12 +2013,12 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-session-token": sessionToken
+          "x-session-token": sessionToken ?? ""
         },
         body: JSON.stringify({
           templateVersionId: activeVersion?.id ?? activeTemplateVersionId ?? undefined,
           instructions: iterationNotes.trim().length > 0 ? iterationNotes.trim() : undefined,
-          provider: aiProvider,
+          provider: aiProvider ?? defaultProviderRef.current,
           targets: targets.map((draft) => ({
             leadId: draft.leadId,
             lastDraftHtml: draft.html ?? undefined,
@@ -2100,6 +2060,80 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
       setSuccess("Applied guided design. You can tweak the copy above or save it as a template version.");
     }
   }, [designerState]);
+
+const resolveProvider = useCallback((): AiProvider | null => {
+  if (aiProvider) {
+    return aiProvider;
+  }
+  return defaultProviderRef.current;
+}, [aiProvider]);
+
+  useEffect(() => {
+    if (!sessionToken || !hydrated) {
+      return;
+    }
+
+    const payload: PersistedState = {
+      version: 3,
+      knowledgeBase,
+      selectedId,
+      selectedPresetId,
+      templateDraft: {
+        name,
+        subject,
+        body
+      },
+      aiProvider: aiProvider ?? undefined,
+      aiDrafts: aiDrafts ?? undefined,
+      selectedLeadIds: selectedLeadIds.length > 0 ? selectedLeadIds : undefined,
+      leadSearch: leadSearch ? leadSearch : undefined,
+      selectedConnectionId: selectedConnectionId ? selectedConnectionId : undefined,
+      sentLog: sentLog.length > 0 ? sentLog.slice(0, 20) : undefined,
+      htmlDraft,
+      activeTemplateVersionId,
+      designerState,
+      designMode,
+      strategyNotes: strategyNotes || undefined,
+      htmlSuggestionNotes: htmlSuggestionNotes || undefined,
+      chatHistory: chatHistory.length > 0 ? chatHistory.slice(-20) : undefined,
+      enhancedPersonalization: enhancedPersonalization || undefined,
+      allowToolUse: enhancedPersonalization ? allowToolUse : undefined,
+      bulkSendEnabled: bulkSendEnabled || undefined
+    };
+
+    persistedRef.current = payload;
+
+    try {
+      window.localStorage.setItem(STORAGE_KEY(projectId), JSON.stringify(payload));
+    } catch (storageError) {
+      console.error('Failed to persist template state', storageError);
+    }
+  }, [
+    hydrated,
+    projectId,
+    knowledgeBase,
+    selectedId,
+    name,
+    subject,
+    body,
+    aiProvider,
+    aiDrafts,
+    selectedLeadIds,
+    leadSearch,
+    selectedConnectionId,
+    sentLog,
+    htmlDraft,
+    activeTemplateVersionId,
+    designerState,
+    designMode,
+    selectedPresetId,
+    strategyNotes,
+    htmlSuggestionNotes,
+    chatHistory,
+    enhancedPersonalization,
+    allowToolUse,
+    bulkSendEnabled
+  ]);
 
   if (status === "loading" || !sessionToken) {
     return (

@@ -84,10 +84,11 @@ export class AiConfigService {
   }
 
   private getDefaultProvider(stored?: Provider): Provider {
-    if (stored && PROVIDERS.includes(stored)) {
-      return stored;
+    // Treat Gemini as the universal default, ignoring stored org preference.
+    if (stored && stored === 'gemini') {
+      return 'gemini';
     }
-    return 'openrouter';
+    return 'gemini';
   }
 
   private getProviderSecrets(
@@ -182,7 +183,7 @@ export class AiConfigService {
     );
 
     return {
-      defaultProvider: secrets.defaultProvider,
+      defaultProvider: 'gemini',
       providers
     };
   }

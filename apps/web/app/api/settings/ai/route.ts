@@ -17,9 +17,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
   }
 
+  const normalizedPayload = {
+    ...((payload as Record<string, unknown>) ?? {}),
+    defaultProvider: 'gemini'
+  };
+
   try {
-    const config = await updateAiConfig(session.sessionToken, payload as Record<string, unknown>);
-    return NextResponse.json(config);
+    const config = await updateAiConfig(session.sessionToken, normalizedPayload);
+    return NextResponse.json({ ...config, defaultProvider: 'gemini' });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to update AI configuration';
     return NextResponse.json({ error: message }, { status: 400 });

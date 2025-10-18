@@ -37,8 +37,10 @@ type FetchError = {
 };
 
 export function AiSettingsForm({ initialConfig }: AiSettingsFormProps) {
-  const [config, setConfig] = useState<AiConfigResponse>(initialConfig);
-  const [defaultProvider, setDefaultProvider] = useState<AiProvider>(initialConfig.defaultProvider);
+  const [config, setConfig] = useState<AiConfigResponse>({
+    ...initialConfig,
+    defaultProvider: 'gemini'
+  });
   const [defaultStatus, setDefaultStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [defaultMessage, setDefaultMessage] = useState<string | null>(null);
 
@@ -99,35 +101,8 @@ export function AiSettingsForm({ initialConfig }: AiSettingsFormProps) {
   };
 
   const handleDefaultSave = async () => {
-    if (defaultProvider === config.defaultProvider) {
-      setDefaultStatus('success');
-      setDefaultMessage('Default provider is already set.');
-      return;
-    }
-
-    setDefaultStatus('saving');
-    setDefaultMessage(null);
-
-    try {
-      const response = await fetch('/api/settings/ai', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ defaultProvider })
-      });
-      const data = (await response.json()) as AiConfigResponse | FetchError;
-      if (!response.ok) {
-        throw new Error((data as FetchError).error ?? 'Failed to update default provider');
-      }
-
-      setConfig(data as AiConfigResponse);
-      setDefaultStatus('success');
-      setDefaultMessage('Default provider updated.');
-    } catch (error) {
-      setDefaultStatus('error');
-      setDefaultMessage(error instanceof Error ? error.message : 'Unable to update default provider');
-    }
+    setDefaultStatus('success');
+    setDefaultMessage('Gemini is enforced as the default provider.');
   };
 
   const handleProviderSave = async (provider: AiProvider) => {
@@ -179,9 +154,12 @@ export function AiSettingsForm({ initialConfig }: AiSettingsFormProps) {
       }
 
       const typed = data as AiConfigResponse;
-      setConfig(typed);
-      resetProviderState(provider, typed);
-      setDefaultProvider(typed.defaultProvider);
+      const nextConfig: AiConfigResponse = {
+        ...typed,
+        defaultProvider: 'gemini'
+      };
+      setConfig(nextConfig);
+      resetProviderState(provider, nextConfig);
     } catch (error) {
       setProviderError(
         provider,
@@ -216,35 +194,35 @@ export function AiSettingsForm({ initialConfig }: AiSettingsFormProps) {
           </label>
           <select
             id="default-provider"
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20"
-            value={defaultProvider}
-            onChange={(event) => setDefaultProvider(event.target.value as AiProvider)}
+            value="gemini"
+            onChange={() => {
+              setConfig((prev) => ({ ...prev, defaultProvider: 'gemini' }));
+            }}
+            className="block w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            disabled
           >
-            {Object.entries(PROVIDER_LABELS).map(([value, meta]) => (
-              <option key={value} value={value}>
-                {meta.name}
-              </option>
-            ))}
+            <option value="gemini">Google Gemini (enforced)</option>
           </select>
-          <button
-            type="button"
-            onClick={handleDefaultSave}
-            disabled={defaultStatus === 'saving'}
-            className="inline-flex items-center justify-center rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-70"
-          >
-            {defaultStatus === 'saving' ? 'Saving…' : 'Save default'}
-          </button>
-          {defaultMessage ? (
-            <p
-              className={`text-sm ${
-                defaultStatus === 'error' ? 'text-rose-600' : 'text-emerald-600'
-              }`}
-            >
-              {defaultMessage}
-            </p>
-          ) : null}
         </div>
+        <button
+          type="button"
+          onClick={handleDefaultSave}
+          className="rounded bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+        >
+          Gemini is the default
+        </button>
       </section>
+      {defaultMessage && (
+        <p
+          className={
+            defaultStatus === 'error'
+              ? 'text-sm text-red-600'
+              : 'text-sm text-slate-600'
+          }
+        >
+          {defaultMessage}
+        </p>
+      )}
 
       <section className="space-y-6">
         {Object.entries(PROVIDER_LABELS).map(([providerId, meta]) => {
