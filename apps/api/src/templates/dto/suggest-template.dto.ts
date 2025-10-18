@@ -27,7 +27,7 @@ export class SuggestTemplateDto {
 
   @IsOptional()
   @IsInt()
-  @Min(3)
+  @Min(1)
   @Max(50)
   leadSampleSize?: number;
 }

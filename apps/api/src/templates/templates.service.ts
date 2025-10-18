@@ -526,47 +526,67 @@ export class TemplatesService {
     );
     const resolvedProvider = generationConfig.provider ?? dto.provider ?? 'openrouter';
 
-    const requestedSampleSize = dto.leadSampleSize ?? (resolvedProvider === 'openrouter' ? 5 : 10);
+    const defaultSample = resolvedProvider === 'openrouter' ? 3 : 8;
+    const requestedSampleSize = dto.leadSampleSize ?? defaultSample;
     const maxSampleSize = resolvedProvider === 'openrouter' ? 5 : 25;
-    const sampleSize = Math.max(3, Math.min(requestedSampleSize, maxSampleSize));
+    const sampleSize = Math.max(1, Math.min(requestedSampleSize, maxSampleSize));
 
-    const leads = await this.prisma.lead.findMany({
-      where: { projectId },
-      orderBy: { createdAt: 'desc' },
-      take: sampleSize
-    });
+    let leads: Array<{
+      email: string;
+      firstName: string | null;
+      lastName: string | null;
+      company: string | null;
+      role: string | null;
+      timezone: string | null;
+      customJson: unknown;
+    }> = [];
 
-    if (leads.length === 0) {
-      throw new BadRequestException('Import leads before asking AI to draft a template.');
+    if (sampleSize > 0) {
+      leads = await this.prisma.lead.findMany({
+        where: { projectId },
+        orderBy: { createdAt: 'desc' },
+        take: sampleSize
+      });
+    }
+
+    const hasLeads = leads.length > 0;
+
+    if (!hasLeads && sampleSize > 0) {
+      throw new BadRequestException('Import leads before asking AI to include lead insights in the template.');
     }
 
     const knowledgeBase = dto.knowledgeBase && dto.knowledgeBase.trim().length > 0
       ? dto.knowledgeBase
       : buildKnowledgeBase(project.brandingJson);
 
-    const leadSummary = leads.map((lead) => ({
-      email: lead.email,
-      first_name: lead.firstName,
-      last_name: lead.lastName,
-      company: lead.company,
-      role: lead.role,
-      timezone: lead.timezone,
-      notes:
-        lead.customJson && typeof lead.customJson === 'object' && !Array.isArray(lead.customJson)
-          ? lead.customJson
-          : undefined
-    }));
+    const leadSummary = hasLeads
+      ? leads.map((lead) => ({
+          email: lead.email,
+          first_name: lead.firstName,
+          last_name: lead.lastName,
+          company: lead.company,
+          role: lead.role,
+          timezone: lead.timezone,
+          notes:
+            lead.customJson && typeof lead.customJson === 'object' && !Array.isArray(lead.customJson)
+              ? lead.customJson
+              : undefined
+        }))
+      : null;
 
     const systemPrompt =
       'You are a seasoned outbound copywriter. Craft high-converting cold outreach email templates that stay human and consultative.';
 
-    const userPrompt = `Knowledge Base:\n${knowledgeBase}\n\nLead Sample (JSON):\n${JSON.stringify(
-      leadSummary,
-      null,
-      2
-    )}\n\nInstructions:\n- Draft a single reusable outreach template with a compelling subject line and body.\n- Use handlebars-style placeholders like {{first_name}}, {{company}}, {{role}}, {{pain_point}} when referencing lead attributes.\n- Keep body under 180 words, conversational but professional, and end with one clear CTA.\n- Return valid JSON with keys "subject" and "body".`;
+    const dataSections = [`Knowledge Base:\n${knowledgeBase}`];
+    if (leadSummary && leadSummary.length > 0) {
+      dataSections.push(
+        `Lead Sample (JSON):\n${JSON.stringify(leadSummary, null, 2)}\nGuidance: Use this lead data sparingly to personalize the copy. Summarize insights rather than listing every lead.`
+      );
+    }
 
-    const timeoutMs = this.calculateTimeout(leads.length, generationConfig.provider);
+    const userPrompt = `${dataSections.join('\n\n')}\n\nInstructions:\n- Draft a single reusable outreach template with a compelling subject line and body.\n- Use handlebars-style placeholders like {{first_name}}, {{company}}, {{role}}, {{pain_point}} when referencing lead attributes.\n- Keep body under 180 words, conversational but professional, and end with one clear CTA.\n- Return valid JSON with keys "subject" and "body".`;
+
+    const timeoutMs = this.calculateTimeout(leads.length || 1, generationConfig.provider);
     const timeoutSeconds = Math.round(timeoutMs / 1000);
 
     let raw: string;
@@ -580,11 +600,9 @@ export class TemplatesService {
         timeoutMs
       });
     } catch (error) {
-      // Re-throw with more context if it's already a BadRequestException with timeout info
       if (error instanceof BadRequestException) {
         throw error;
       }
-      // Catch any other errors and wrap with context
       const message = error instanceof Error ? error.message : String(error);
       throw new BadRequestException(
         `AI generation failed: ${message} Try reducing the number of leads (currently: ${leads.length}).`
