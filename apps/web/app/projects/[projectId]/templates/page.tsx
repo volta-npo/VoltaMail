@@ -95,7 +95,6 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
   const [name, setName] = useState("");
   const [subject, setSubject] = useState(DEFAULT_SUBJECT);
   const [body, setBody] = useState(DEFAULT_BODY);
-  const [preview, setPreview] = useState<RenderedLeadPreview[] | null>(null);
   const [aiDrafts, setAiDrafts] = useState<AiDraftResult[] | null>(null);
   const [currentDraftPage, setCurrentDraftPage] = useState(1);
   const draftsPerPage = 10;
@@ -1997,6 +1996,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
     enhancedPersonalization,
     allowToolUse,
     bulkSendEnabled
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   ]);
 
   if (status === "loading" || !sessionToken) {
