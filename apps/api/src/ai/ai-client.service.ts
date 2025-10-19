@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 type Provider = 'openrouter' | 'openai' | 'gemini';
@@ -45,6 +45,8 @@ const PROVIDER_FETCH_TIMEOUTS: Record<Provider, number> = {
 
 @Injectable()
 export class AiClientService {
+  private readonly logger = new Logger(AiClientService.name);
+
   constructor(private readonly configService: ConfigService) {}
 
   async generate(options: AiGenerateOptions): Promise<string> {
@@ -332,6 +334,7 @@ export class AiClientService {
 
       if (!response.ok) {
         const errorText = await response.text();
+        this.logger.error(`[Gemini] API error ${response.status}: ${errorText}`);
         if (response.status === 429) {
           throw new BadRequestException(
             'Gemini rate limit exceeded. Please try again in a moment.'
@@ -345,6 +348,8 @@ export class AiClientService {
       if (!response.body) {
         throw new InternalServerErrorException('Gemini streaming response had no body.');
       }
+
+      this.logger.debug('[Gemini] Starting to read stream...');
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -370,11 +375,18 @@ export class AiClientService {
           let parsed: any;
           try {
             parsed = JSON.parse(line);
-          } catch {
+          } catch (parseError) {
+            this.logger.warn(`[Gemini] Failed to parse line: ${line.slice(0, 200)}`);
             continue;
           }
 
           const parts = parsed?.candidates?.[0]?.content?.parts ?? [];
+          
+          // Log if we got a response but no parts (e.g., content filtered)
+          if (parsed?.candidates?.[0] && parts.length === 0) {
+            this.logger.warn(`[Gemini] Response has no parts. Full candidate: ${JSON.stringify(parsed.candidates[0]).slice(0, 500)}`);
+          }
+          
           const text = parts
             .map((part: { text?: string }) => part?.text ?? '')
             .join('');
@@ -413,8 +425,12 @@ export class AiClientService {
         }
       }
 
+      this.logger.debug(`[Gemini] Stream complete. Total yielded: ${totalYielded} chars`);
+      
       if (totalYielded === 0) {
-        throw new InternalServerErrorException('Gemini returned an empty streaming response.');
+        throw new InternalServerErrorException(
+          'Gemini returned an empty streaming response. This may indicate content was filtered or blocked by safety settings.'
+        );
       }
     } catch (error) {
       if (error instanceof Error) {
