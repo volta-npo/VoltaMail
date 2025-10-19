@@ -132,8 +132,6 @@ const defaultProviderRef = useRef<AiProvider | null>(null);
   const [suggestingTemplate, setSuggestingTemplate] = useState(false);
   const [bulkSending, setBulkSending] = useState(false);
   const [bulkSendEnabled, setBulkSendEnabled] = useState(false);
-  const [previewSending, setPreviewSending] = useState(false);
-  const [previewSendingId, setPreviewSendingId] = useState<string | null>(null);
   const [deletingTemplate, setDeletingTemplate] = useState(false);
   const [htmlDraft, setHtmlDraft] = useState('');
   const [activeTemplateVersionId, setActiveTemplateVersionId] = useState<string | null>(null);
@@ -704,7 +702,6 @@ const defaultProviderRef = useRef<AiProvider | null>(null);
   };
 
   const selectedLeadCount = selectedLeadIds.length;
-  const hasPreview = Array.isArray(preview) && preview.length > 0;
 
   const activeConnection = useMemo(() => {
     if (gmailConnections.length === 0) {
@@ -1535,165 +1532,6 @@ const defaultProviderRef = useRef<AiProvider | null>(null);
       await refreshConnections();
     } finally {
       setBulkSending(false);
-    }
-  };
-
-  const handleSendPreview = async () => {
-    if (!bulkSendEnabled) {
-      return;
-    }
-
-    if (!selectedId || !preview || preview.length === 0) {
-      return;
-    }
-
-    if (!activeConnection) {
-      setError("Connect a Gmail account before sending emails.");
-      return;
-    }
-
-    if (activeConnection.needsReauth) {
-      setError("Reconnect your Gmail account to refresh access before sending emails.");
-      return;
-    }
-
-    setPreviewSending(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/v1/templates/${selectedId}/send-bulk`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-session-token": sessionToken ?? ""
-        },
-        body: JSON.stringify({
-          drafts: preview.map((row) => ({
-            leadId: row.leadId,
-            subject: row.subject,
-            body: row.body,
-            html: `<div style="font-family: Arial, sans-serif; padding: 16px;">${row.body.replace(/\n/g, '<br />')}</div>`,
-            templateVersionId: activeVersion?.id ?? activeTemplateVersionId ?? undefined
-          })),
-          gmailConnectionId: selectedConnectionId || undefined
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(await extractErrorMessage(response));
-      }
-
-      const result = (await response.json()) as BulkSendResponse;
-      const sentLeads = result.results.filter((item) => item.status === 'sent');
-      const failed = result.results.filter((item) => item.status === 'failed');
-
-      if (sentLeads.length > 0) {
-        setSentLog((prev) => [
-          ...sentLeads.map((item) => {
-            const row = preview.find((d) => d.leadId === item.leadId);
-            return {
-              leadId: item.leadId,
-              email: row?.email ?? item.leadId,
-              subject: row?.subject ?? '',
-              messageId: item.messageId ?? '',
-              sentAt: item.sentAt ?? new Date().toISOString(),
-              gmailConnectionEmail: item.gmailConnectionEmail ?? (activeConnection?.email ?? '')
-            };
-          }),
-          ...prev
-        ]);
-        setSuccess(`Sent ${sentLeads.length} preview email${sentLeads.length === 1 ? '' : 's'} successfully.`);
-      }
-
-      if (failed.length > 0) {
-        const failedDetails = failed
-          .map((item) => {
-            const row = preview.find((d) => d.leadId === item.leadId);
-            const label = row ? row.email : item.leadId;
-            const reason = item.error ?? 'Unknown error';
-            return `${label} (${reason})`;
-          })
-          .join('; ');
-        setError(`Failed to send ${failed.length} preview email${failed.length === 1 ? '' : 's'}. ${failedDetails}`);
-      } else {
-        setError(null);
-      }
-    } catch (sendError) {
-      const message = sendError instanceof Error ? sendError.message : 'Failed to send preview emails';
-      setError(message);
-      await refreshConnections();
-    } finally {
-      setPreviewSending(false);
-    }
-  };
-
-  const handleSendPreviewRow = async (row: RenderedLeadPreview) => {
-    if (!bulkSendEnabled) {
-      setError('Enable bulk send to dispatch emails from preview.');
-      return;
-    }
-
-    if (!selectedId) {
-      setError('Save your template before sending emails.');
-      return;
-    }
-
-    if (!activeConnection) {
-      setError('Connect a Gmail account before sending emails.');
-      return;
-    }
-
-    if (activeConnection.needsReauth) {
-      setError('Reconnect your Gmail account to refresh access before sending emails.');
-      return;
-    }
-
-    setPreviewSendingId(row.leadId);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/v1/templates/${selectedId}/send`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-session-token': sessionToken ?? ''
-        },
-        body: JSON.stringify({
-          leadId: row.leadId,
-          subject: row.subject,
-          body: row.body,
-          html: row.body ? `<div style="font-family: Arial, sans-serif; padding: 16px;">${row.body.replace(/\n/g, '<br />')}</div>` : undefined,
-          templateVersionId: activeVersion?.id ?? activeTemplateVersionId ?? undefined,
-          gmailConnectionId: selectedConnectionId || undefined
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(await extractErrorMessage(response));
-      }
-
-      const result = (await response.json()) as SendDraftResponse;
-      setSentLog((prev) => [
-        {
-          leadId: row.leadId,
-          email: row.email,
-          subject: row.subject,
-          messageId: result.messageId,
-          sentAt: result.sentAt,
-          gmailConnectionEmail: result.gmailConnectionEmail
-        },
-        ...prev
-      ]);
-      setSelectedLeadIds((prev) => prev.filter((id) => id !== row.leadId));
-      setSuccess(`Sent email to ${row.email}`);
-    } catch (sendError) {
-      const message = sendError instanceof Error ? sendError.message : 'Failed to send preview email';
-      setError(message);
-      await refreshConnections();
-    } finally {
-      setPreviewSendingId(null);
     }
   };
 
