@@ -1002,7 +1002,7 @@ const defaultProviderRef = useRef<AiProvider | null>(null);
       const drafts: AiDraftResult[] = leadsToGenerate.map(lead => {
         let renderedSubject = subject;
         let renderedBody = body;
-        let renderedHtml = html;
+        let renderedHtml = htmlDraft;
 
         // Replace {{variable}} and {{variable|fallback}} patterns
         const replaceVariables = (text: string) => {
