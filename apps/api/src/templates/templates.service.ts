@@ -49,7 +49,10 @@ export class TemplatesService {
   private calculateTimeout(leadsCount: number, provider?: string): number {
     const baseTimeout = 8000; // 8 seconds
     const isFreeModel = provider === 'openrouter' || !provider;
-    const timeoutPerLead = isFreeModel ? 3500 : 2500; // 3.5s for free, 2.5s for paid
+    const isGemini = provider === 'gemini';
+    
+    // Gemini needs more time due to thinking tokens
+    const timeoutPerLead = isGemini ? 4500 : (isFreeModel ? 3500 : 2500);
     const maxTimeout = 27000; // 27 seconds max (Heroku hard limit is 30s)
 
     const calculated = baseTimeout + (leadsCount * timeoutPerLead);
@@ -363,8 +366,20 @@ export class TemplatesService {
         try {
           results[currentIndex] = await generateForLead(lead);
         } catch (error) {
-          this.logger.warn(`Failed to generate draft for lead ${lead.id}: ${error instanceof Error ? error.message : String(error)}`);
-          throw error;
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          this.logger.warn(`Failed to generate draft for lead ${lead.id}: ${errorMessage}`);
+          
+          // Don't throw - create a failed result instead so other workers can continue
+          results[currentIndex] = {
+            leadId: lead.id,
+            email: lead.email,
+            subject: 'Generation failed',
+            body: `Could not generate personalized draft. ${errorMessage}`,
+            html: null,
+            templateVersionId: activeVersion?.id ?? undefined,
+            provider: generationConfig.provider,
+            notes: `Error: ${errorMessage}`
+          };
         }
       }
     };
