@@ -168,7 +168,6 @@ const defaultProviderRef = useRef<AiProvider | null>(null);
     setDesignerPreviewText('');
     setDesignMode('builder');
     setAiDrafts(null);
-    setPreview(null);
     setSelectedLeadIds([]);
     setSentLog([]);
     setStrategyNotes('');
@@ -198,7 +197,6 @@ const defaultProviderRef = useRef<AiProvider | null>(null);
     setDesignerPreviewText('');
     setDesignMode(template.activeVersion?.htmlContent ? 'html' : 'builder');
     setAiDrafts(null);
-    setPreview(null);
     setSelectedLeadIds([]);
     setSentLog([]);
     setStrategyNotes('');
@@ -965,45 +963,6 @@ const defaultProviderRef = useRef<AiProvider | null>(null);
       return null;
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handlePreview = async (sampleSize = 5) => {
-    if (!selectedId) {
-      const created = await handleCreate();
-      if (!created) {
-        return;
-      }
-      setSelectedId(created.id);
-    }
-
-    setError(null);
-    setPreview(null);
-    setAiDrafts(null);
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/v1/templates/${selectedId}/render`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-            "x-session-token": sessionToken ?? ""
-        },
-        body: JSON.stringify({ sampleSize })
-      });
-
-      if (!response.ok) {
-        throw new Error(await extractErrorMessage(response));
-      }
-
-      const data = (await response.json()) as RenderedLeadPreview[];
-      const normalized = data.map((row) => ({
-        ...row,
-        subject: row.subject.replace(/\\n/g, '\n'),
-        body: row.body.replace(/\\n/g, '\n')
-      }));
-      setPreview(normalized);
-    } catch (previewError) {
-      setError(previewError instanceof Error ? previewError.message : "Failed to render preview");
     }
   };
 
@@ -2395,7 +2354,6 @@ const resolveProvider = useCallback((): AiProvider | null => {
               setName("New template");
               setSubject("Hi {{first_name|there}}");
               setBody("{{first_name|there}},\n\nI'm reaching out because {{company}} looks like a great fit for us.");
-              setPreview(null);
               setAiDrafts(null);
               setHtmlDraft('');
               setActiveTemplateVersionId(null);
@@ -2507,7 +2465,6 @@ const resolveProvider = useCallback((): AiProvider | null => {
                         setName(template.name);
                         setSubject(template.subject);
                         setBody(template.activeVersion?.textContent ?? template.body);
-                        setPreview(null);
                         setAiDrafts(null);
                         setHtmlDraft(template.activeVersion?.htmlContent ?? '');
                         setActiveTemplateVersionId(template.activeVersion?.id ?? null);
