@@ -96,7 +96,9 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
   const [subject, setSubject] = useState(DEFAULT_SUBJECT);
   const [body, setBody] = useState(DEFAULT_BODY);
   const [preview, setPreview] = useState<RenderedLeadPreview[] | null>(null);
-const [aiDrafts, setAiDrafts] = useState<AiDraftResult[] | null>(null);
+  const [aiDrafts, setAiDrafts] = useState<AiDraftResult[] | null>(null);
+  const [currentDraftPage, setCurrentDraftPage] = useState(1);
+  const draftsPerPage = 10;
 const [aiProvider, setAiProvider] = useState<AiProvider | null>(null);
 const defaultProviderRef = useRef<AiProvider | null>(null);
   const [generatingAi, setGeneratingAi] = useState(false);
@@ -1087,6 +1089,7 @@ const defaultProviderRef = useRef<AiProvider | null>(null);
         });
       } else {
         setAiDrafts(enriched);
+        setCurrentDraftPage(1); // Reset to first page when generating new drafts
       }
 
       let baseMessage: string;
@@ -3190,7 +3193,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
         <section className="rounded-lg border border-emerald-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-medium text-slate-800">AI Drafts ({aiProvider})</h2>
+              <h2 className="text-lg font-medium text-slate-800">AI Drafts ({aiProvider}) — {aiDrafts.length} total</h2>
               <p className="mt-1 text-sm text-slate-600">
                 Drafts generated automatically for recent leads.{" "}
                 {activeConnection
@@ -3209,27 +3212,40 @@ const resolveProvider = useCallback((): AiProvider | null => {
                 </span>
               </label>
             </div>
-            <button
-              type="button"
-              onClick={handleApproveAllDrafts}
-              disabled={
-                bulkSending ||
-                !aiDrafts ||
-                aiDrafts.length === 0 ||
-                !bulkSendEnabled ||
-                !activeConnection ||
-                activeConnection.needsReauth === true
-              }
-              className="inline-flex items-center justify-center rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
-            >
-              {bulkSending
-                ? "Sending drafts…"
-                : !activeConnection
-                  ? "Connect Gmail"
-                  : activeConnection.needsReauth
-                    ? "Reconnect Gmail"
-                    : "Approve & send all"}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAiDrafts(null);
+                  setCurrentDraftPage(1);
+                  setSuccess('All drafts cleared');
+                }}
+                className="inline-flex items-center justify-center rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Clear all drafts
+              </button>
+              <button
+                type="button"
+                onClick={handleApproveAllDrafts}
+                disabled={
+                  bulkSending ||
+                  !aiDrafts ||
+                  aiDrafts.length === 0 ||
+                  !bulkSendEnabled ||
+                  !activeConnection ||
+                  activeConnection.needsReauth === true
+                }
+                className="inline-flex items-center justify-center rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+              >
+                {bulkSending
+                  ? "Sending drafts…"
+                  : !activeConnection
+                    ? "Connect Gmail"
+                    : activeConnection.needsReauth
+                      ? "Reconnect Gmail"
+                      : "Approve & send all"}
+              </button>
+            </div>
           </div>
           <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,240px)]">
             <label className="flex flex-col gap-2 text-sm text-slate-700">
@@ -3265,8 +3281,52 @@ const resolveProvider = useCallback((): AiProvider | null => {
               </button>
             </div>
           </div>
+          
+          {/* Pagination Controls */}
+          {aiDrafts.length > draftsPerPage && (
+            <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4">
+              <p className="text-sm text-slate-600">
+                Showing {((currentDraftPage - 1) * draftsPerPage) + 1} to {Math.min(currentDraftPage * draftsPerPage, aiDrafts.length)} of {aiDrafts.length} drafts
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentDraftPage(p => Math.max(1, p - 1))}
+                  disabled={currentDraftPage === 1}
+                  className="rounded border border-slate-300 px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                {Array.from({ length: Math.ceil(aiDrafts.length / draftsPerPage) }, (_, i) => i + 1).map((pageNum) => (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    onClick={() => setCurrentDraftPage(pageNum)}
+                    className={`rounded px-3 py-1 text-sm font-medium ${
+                      currentDraftPage === pageNum
+                        ? 'bg-emerald-600 text-white'
+                        : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setCurrentDraftPage(p => Math.min(Math.ceil(aiDrafts.length / draftsPerPage), p + 1))}
+                  disabled={currentDraftPage === Math.ceil(aiDrafts.length / draftsPerPage)}
+                  className="rounded border border-slate-300 px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+          
           <div className="mt-4 space-y-4">
-            {aiDrafts.map((draft) => (
+            {aiDrafts
+              .slice((currentDraftPage - 1) * draftsPerPage, currentDraftPage * draftsPerPage)
+              .map((draft) => (
               <article key={draft.leadId} className="rounded border border-slate-200 bg-slate-50 p-4">
                 <header className="flex items-center justify-between text-sm text-slate-600">
                   <span>{draft.email}</span>

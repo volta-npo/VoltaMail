@@ -80,11 +80,12 @@ export class TemplatesService {
     const configuredConcurrency = Number.parseInt(process.env.AI_DRAFT_CONCURRENCY ?? '', 10);
     let defaultConcurrency = 4;
 
-    // Adjust based on provider
+    // Adjust based on provider and lead count
     if (provider === 'openrouter') {
       defaultConcurrency = 2; // Rate limiting for free models
     } else if (provider === 'gemini') {
-      defaultConcurrency = 3;
+      // Scale up workers for larger batches to handle 100-120 leads efficiently
+      defaultConcurrency = (leadsCount ?? 0) > 50 ? 5 : 3;
     } else {
       defaultConcurrency = 6; // Paid models can handle more
     }
