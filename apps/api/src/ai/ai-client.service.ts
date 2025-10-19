@@ -350,6 +350,7 @@ export class AiClientService {
       const decoder = new TextDecoder();
       let buffer = '';
       let previousText = '';
+      let totalYielded = 0;
 
       while (true) {
         const { value, done } = await reader.read();
@@ -386,6 +387,7 @@ export class AiClientService {
             const diff = text.slice(previousText.length);
             previousText = text;
             if (diff) {
+              totalYielded += diff.length;
               yield diff;
             }
           }
@@ -402,12 +404,17 @@ export class AiClientService {
           if (text.length > previousText.length) {
             const diff = text.slice(previousText.length);
             if (diff) {
+              totalYielded += diff.length;
               yield diff;
             }
           }
         } catch {
           // ignore trailing parse errors
         }
+      }
+
+      if (totalYielded === 0) {
+        throw new InternalServerErrorException('Gemini returned an empty streaming response.');
       }
     } catch (error) {
       if (error instanceof Error) {

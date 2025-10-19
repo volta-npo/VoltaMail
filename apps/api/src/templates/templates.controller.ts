@@ -161,12 +161,19 @@ export class TemplatesController {
       });
       res.flushHeaders();
 
+      let accumulated = '';
       for await (const chunk of stream) {
+        accumulated += chunk;
         res.write(chunk);
         res.flush?.();
       }
       res.end();
-      this.logger.debug(`[suggest] Success for project: ${projectId}`);
+      
+      // Log what we actually sent for debugging
+      this.logger.debug(`[suggest] Streamed ${accumulated.length} chars for project: ${projectId}`);
+      if (accumulated.length === 0) {
+        this.logger.warn(`[suggest] Empty stream for project: ${projectId}`);
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(
