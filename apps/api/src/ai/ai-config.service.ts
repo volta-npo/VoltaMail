@@ -148,11 +148,13 @@ export class AiConfigService {
     const config = await this.getOrganizationSecrets(organizationId);
     const provider = requestedProvider ?? config.defaultProvider;
     const providerSecrets = config.providers[provider];
+    const fallbackEnvKey = this.getEnvKey(provider) ?? null;
+    const apiKey = providerSecrets.apiKey ?? fallbackEnvKey;
 
-    if (!providerSecrets.apiKey) {
+    if (!apiKey) {
       const providerLabel = provider.toUpperCase();
       throw new BadRequestException(
-        `${providerLabel} API key is not configured. Add one in AI settings or set an environment variable.`
+        `${providerLabel} API key is not configured. Add one in AI settings or set the ${providerLabel}_API_KEY environment variable.`
       );
     }
 
@@ -162,8 +164,8 @@ export class AiConfigService {
     return {
       provider,
       model,
-      apiKey: providerSecrets.apiKey,
-      hasKey: Boolean(providerSecrets.apiKey)
+      apiKey,
+      hasKey: Boolean(apiKey)
     };
   }
 

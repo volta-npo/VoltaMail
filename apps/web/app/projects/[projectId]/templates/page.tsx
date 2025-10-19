@@ -8,6 +8,7 @@ import {
   AiDraftResult,
   AiProvider,
   AiTemplateSuggestion,
+  AiConfigResponse,
   BulkSendResponse,
   GmailConnectionSummary,
   KnowledgeSource,
@@ -312,6 +313,42 @@ const defaultProviderRef = useRef<AiProvider | null>(null);
     }
   }, [projectId, sessionToken, extractErrorMessage]);
 
+  const loadAiConfig = useCallback(async () => {
+    if (!sessionToken) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/v1/organizations/me/ai-config`, {
+        method: "GET",
+        headers: {
+          "x-session-token": sessionToken ?? ""
+        }
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const data = (await response.json()) as AiConfigResponse;
+      const geminiHasKey = data.providers.gemini?.hasKey ?? false;
+      
+      // Set default provider based on what keys are available
+      defaultProviderRef.current = geminiHasKey ? 'gemini' : data.defaultProvider;
+      
+      // Only set aiProvider state if it's null (not set by user or persisted)
+      if (aiProvider === null) {
+        setAiProvider(defaultProviderRef.current);
+      }
+    } catch {
+      // If we can't load AI config, default to gemini
+      defaultProviderRef.current = 'gemini';
+      if (aiProvider === null) {
+        setAiProvider('gemini');
+      }
+    }
+  }, [sessionToken, aiProvider]);
+
   const refreshConnections = useCallback(async () => {
     if (!sessionToken) {
       return;
@@ -432,6 +469,14 @@ const defaultProviderRef = useRef<AiProvider | null>(null);
     loadTemplates();
     return () => controller.abort();
   }, [sessionToken, projectId, hydrated, extractErrorMessage]);
+
+  useEffect(() => {
+    if (!sessionToken || !hydrated) {
+      return;
+    }
+
+    loadAiConfig();
+  }, [sessionToken, hydrated, loadAiConfig]);
 
   useEffect(() => {
     if (!sessionToken) {
