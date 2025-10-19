@@ -1782,16 +1782,21 @@ const defaultProviderRef = useRef<AiProvider | null>(null);
     setError(null);
     setSuccess(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/v1/templates/${selectedId}/iterate`, {
+      const response = await fetch(`${API_BASE_URL}/v1/templates/${selectedId}/iterate-drafts`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-session-token": sessionToken ?? ""
         },
         body: JSON.stringify({
-          leadIds: [draft.leadId],
-          notes: instructionPayload,
-          provider: aiProvider ?? defaultProviderRef.current
+          targets: [{
+            leadId: draft.leadId,
+            lastDraftText: draft.body,
+            lastDraftHtml: draft.html ?? undefined
+          }],
+          instructions: instructionPayload,
+          provider: aiProvider ?? defaultProviderRef.current,
+          templateVersionId: draft.templateVersionId
         })
       });
 
