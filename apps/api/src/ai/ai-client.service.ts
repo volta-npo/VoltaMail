@@ -327,7 +327,24 @@ export class AiClientService {
                   { text: options.userPrompt }
                 ]
               }
-            ]
+            ],
+            generationConfig: {
+              responseMimeType: 'application/json',
+              responseSchema: {
+                type: 'object',
+                properties: {
+                  subject: {
+                    type: 'string',
+                    description: 'Email subject line'
+                  },
+                  body: {
+                    type: 'string',
+                    description: 'Email body content'
+                  }
+                },
+                required: ['subject', 'body']
+              }
+            }
           })
         }
       );
@@ -367,14 +384,14 @@ export class AiClientService {
 
       this.logger.debug(`[Gemini] Received ${fullResponse.length} chars from stream`);
 
-      // Try to parse as JSON array (Gemini's format)
+      // Parse the streaming JSON array from Gemini
       try {
         const parsed = JSON.parse(fullResponse);
         
         // Handle both array and single object responses
         const responses = Array.isArray(parsed) ? parsed : [parsed];
         
-        // Accumulate all text chunks
+        // Accumulate all text chunks from the structured JSON response
         let accumulatedText = '';
         for (const chunk of responses) {
           const parts = chunk?.candidates?.[0]?.content?.parts ?? [];
@@ -389,12 +406,25 @@ export class AiClientService {
         
         this.logger.debug(`[Gemini] Extracted ${accumulatedText.length} chars of content`);
         
+        // Validate it's valid JSON with subject and body
         if (accumulatedText) {
+          try {
+            const validated = JSON.parse(accumulatedText);
+            if (!validated.subject || !validated.body) {
+              this.logger.warn('[Gemini] Response missing subject or body fields');
+              throw new InternalServerErrorException('Gemini response missing required fields (subject, body)');
+            }
+          } catch (validationError) {
+            this.logger.error(`[Gemini] Response is not valid JSON: ${accumulatedText.slice(0, 200)}`);
+            throw new InternalServerErrorException('Gemini did not return valid JSON');
+          }
+          
           totalYielded = accumulatedText.length;
           yield accumulatedText;
         }
       } catch (parseError) {
-        this.logger.error(`[Gemini] Failed to parse response: ${parseError.message}`);
+        const errorMsg = parseError instanceof Error ? parseError.message : String(parseError);
+        this.logger.error(`[Gemini] Failed to parse response: ${errorMsg}`);
         this.logger.debug(`[Gemini] Raw response (first 500 chars): ${fullResponse.slice(0, 500)}`);
         throw new InternalServerErrorException('Failed to parse Gemini response');
       }
