@@ -1004,6 +1004,8 @@ const defaultProviderRef = useRef<AiProvider | null>(null);
         let renderedBody = body;
         let renderedHtml = htmlDraft;
 
+        const customFields = (lead as Partial<LeadSummary> & { customJson?: Record<string, unknown> | null }).customJson;
+
         // Replace {{variable}} and {{variable|fallback}} patterns
         const replaceVariables = (text: string) => {
           return text.replace(/\{\{([^}|]+)(?:\|([^}]+))?\}\}/g, (match, varName, fallback) => {
@@ -1017,8 +1019,8 @@ const defaultProviderRef = useRef<AiProvider | null>(null);
             else if (trimmedVar === 'company') value = lead.company;
             else if (trimmedVar === 'role') value = lead.role;
             // Check custom fields
-            else if (lead.customJson && typeof lead.customJson === 'object') {
-              value = (lead.customJson as Record<string, unknown>)[trimmedVar] as string | null;
+            else if (customFields && typeof customFields === 'object') {
+              value = customFields[trimmedVar] as string | null;
             }
 
             // Return value or fallback or original
