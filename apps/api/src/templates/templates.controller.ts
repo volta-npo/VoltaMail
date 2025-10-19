@@ -161,13 +161,10 @@ export class TemplatesController {
       });
       res.flushHeaders();
 
-      res.write('{"subject":"","body":"');
       for await (const chunk of stream) {
-        const safeChunk = chunk.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
-        res.write(safeChunk);
+        res.write(chunk);
         res.flush?.();
       }
-      res.write('"}');
       res.end();
       this.logger.debug(`[suggest] Success for project: ${projectId}`);
     } catch (error) {
