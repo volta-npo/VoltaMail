@@ -1011,7 +1011,7 @@ const defaultProviderRef = useRef<AiProvider | null>(null);
     }
   };
 
-  const handleGenerateAi = async (sampleSize = 3, leadIds?: string[]) => {
+  const handleGenerateDrafts = async (leadIds?: string[]) => {
     if (!selectedId) {
       const created = await handleCreate({ suppressToast: true });
       if (!created) {
@@ -1025,8 +1025,10 @@ const defaultProviderRef = useRef<AiProvider | null>(null);
       }
     }
 
-    if ((!leadIds || leadIds.length === 0) && leadOptions.length === 0) {
-      setError('Import leads before generating drafts.');
+    const effectiveLeadIds = leadIds ?? (selectedLeadIds.length > 0 ? selectedLeadIds : undefined);
+    
+    if (!effectiveLeadIds || effectiveLeadIds.length === 0) {
+      setError('Select leads before generating drafts.');
       return;
     }
 
@@ -1034,96 +1036,72 @@ const defaultProviderRef = useRef<AiProvider | null>(null);
     setSuccess(null);
     setGeneratingAi(true);
 
-    const effectiveLeadIds =
-      leadIds ?? (selectedLeadIds.length > 0 ? selectedLeadIds : undefined);
-
-    if (!effectiveLeadIds || effectiveLeadIds.length !== 1) {
-      setAiDrafts(null);
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 28000); // 28 second timeout (Heroku 30s limit - 2s buffer)
-
     try {
-      const response = await fetch(`${API_BASE_URL}/v1/templates/${selectedId}/generate`, {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          "Content-Type": "application/json",
-          "x-session-token": sessionToken ?? ""
-        },
-        body: JSON.stringify({
-          sampleSize,
-          provider: aiProvider ?? defaultProviderRef.current,
-          leadIds: effectiveLeadIds,
-          enhancedPersonalization: enhancedPersonalization || undefined,
-          allowToolUse: enhancedPersonalization ? allowToolUse : undefined
-        })
+      // Get the selected leads data
+      const leadsToGenerate = leadOptions.filter(lead => effectiveLeadIds.includes(lead.id));
+      
+      if (leadsToGenerate.length === 0) {
+        throw new Error('No leads found');
+      }
+
+      // Simple template variable replacement - no AI needed
+      const drafts: AiDraftResult[] = leadsToGenerate.map(lead => {
+        let renderedSubject = subject;
+        let renderedBody = body;
+        let renderedHtml = html;
+
+        // Replace {{variable}} and {{variable|fallback}} patterns
+        const replaceVariables = (text: string) => {
+          return text.replace(/\{\{([^}|]+)(?:\|([^}]+))?\}\}/g, (match, varName, fallback) => {
+            const trimmedVar = varName.trim();
+            let value: string | null = null;
+
+            // Check lead properties
+            if (trimmedVar === 'first_name' || trimmedVar === 'firstName') value = lead.firstName;
+            else if (trimmedVar === 'last_name' || trimmedVar === 'lastName') value = lead.lastName;
+            else if (trimmedVar === 'email') value = lead.email;
+            else if (trimmedVar === 'company') value = lead.company;
+            else if (trimmedVar === 'role') value = lead.role;
+            // Check custom fields
+            else if (lead.customJson && typeof lead.customJson === 'object') {
+              value = (lead.customJson as Record<string, unknown>)[trimmedVar] as string | null;
+            }
+
+            // Return value or fallback or original
+            return value ?? (fallback?.trim() || match);
+          });
+        };
+
+        renderedSubject = replaceVariables(renderedSubject);
+        renderedBody = replaceVariables(renderedBody);
+        if (renderedHtml) {
+          renderedHtml = replaceVariables(renderedHtml);
+        }
+
+        return {
+          leadId: lead.id,
+          email: lead.email,
+          subject: renderedSubject,
+          body: renderedBody,
+          html: renderedHtml || null,
+          provider: 'template',
+          templateVersionId: activeVersion?.id ?? activeTemplateVersionId ?? undefined
+        };
       });
 
-      if (!response.ok) {
-        throw new Error(await extractErrorMessage(response));
-      }
-
-      const data = (await response.json()) as AiDraftResult[];
-      const enriched = data.map((draft) => ({
-        ...draft,
-        subject: draft.subject.replace(/\\n/g, '\n'),
-        body: draft.body.replace(/\\n/g, '\n'),
-        html: typeof draft.html === 'string' ? draft.html : draft.html,
-        templateVersionId: draft.templateVersionId ?? activeVersion?.id ?? activeTemplateVersionId ?? undefined
-      }));
-
-      if (effectiveLeadIds && effectiveLeadIds.length === 1) {
-        setAiDrafts((prev) => {
-          const replacement = enriched[0];
-          if (!replacement) {
-            return prev ?? null;
-          }
-          if (!prev) {
-            return enriched;
-          }
-          return prev.map((draft) =>
-            draft.leadId === effectiveLeadIds[0] ? replacement : draft
-          );
-        });
-      } else {
-        setAiDrafts(enriched);
-        setCurrentDraftPage(1); // Reset to first page when generating new drafts
-      }
-
-      let baseMessage: string;
-      if (effectiveLeadIds && effectiveLeadIds.length === 1 && data[0]) {
-        baseMessage = `Generated draft for ${data[0].email}`;
-      } else if (effectiveLeadIds && effectiveLeadIds.length > 1) {
-        baseMessage = `Generated ${data.length} drafts for selected leads.`;
-      } else {
-        baseMessage = `Generated ${data.length} drafts from recent leads.`;
-      }
-
-      if (enhancedPersonalization) {
-        baseMessage = `${baseMessage} Personalization boost enabled${allowToolUse ? ' with research assistance.' : '.'}`;
-      }
-
-      setSuccess(baseMessage);
-    } catch (aiError) {
-      let errorMessage = "Failed to generate AI drafts";
-      if (aiError instanceof Error) {
-        if (aiError.name === 'AbortError') {
-          errorMessage = "AI generation timed out. The AI provider took too long. Try reducing the number of leads or switching to a different AI provider.";
-        } else {
-          errorMessage = aiError.message;
-        }
-      }
+      setAiDrafts(drafts);
+      setCurrentDraftPage(1);
+      setSuccess(`Generated ${drafts.length} draft${drafts.length === 1 ? '' : 's'} from template.`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate drafts';
       setError(errorMessage);
     } finally {
-      clearTimeout(timeoutId);
       setGeneratingAi(false);
     }
   };
 
   const handleRegenerateDraft = async (leadId: string) => {
-    await handleGenerateAi(1, [leadId]);
+    await handleGenerateDrafts([leadId]);
   };
 
   const handleChatSend = async (message: string) => {
@@ -1256,8 +1234,8 @@ const defaultProviderRef = useRef<AiProvider | null>(null);
           Object.fromEntries(
             Object.entries({
               provider,
-              knowledgeBase: knowledgeBase.trim().length > 0 ? knowledgeBase : undefined,
-              instructions: strategyNotes.trim().length > 0 ? strategyNotes.trim() : undefined
+          knowledgeBase: knowledgeBase.trim().length > 0 ? knowledgeBase : undefined,
+          instructions: strategyNotes.trim().length > 0 ? strategyNotes.trim() : undefined
             }).filter(([, value]) => value !== undefined)
           )
         )
@@ -2785,15 +2763,13 @@ const resolveProvider = useCallback((): AiProvider | null => {
               </button>
               <button
                 type="button"
-                onClick={() => handleGenerateAi(3)}
-                disabled={generatingAi}
+                onClick={() => handleGenerateDrafts(selectedLeadIds.length > 0 ? selectedLeadIds : undefined)}
+                disabled={generatingAi || selectedLeadIds.length === 0}
                 className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
               >
                 {generatingAi
                   ? "Generating drafts…"
-                  : enhancedPersonalization
-                    ? "Generate personalized drafts"
-                    : "Generate drafts"}
+                  : `Generate drafts (${selectedLeadIds.length || 0} selected)`}
               </button>
               <button
                 type="button"
@@ -3052,150 +3028,14 @@ const resolveProvider = useCallback((): AiProvider | null => {
           </div>
         </div>
       </section>
-      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-medium text-slate-800">Preview</h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Auto-generated copy for recent leads. Adjust your template if anything looks off before sending.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() =>
-                handleGenerateAi(
-                  selectedLeadIds.length || 3,
-                  selectedLeadIds.length > 0 ? selectedLeadIds : undefined
-                )
-              }
-              disabled={generatingAi}
-              className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-            >
-              {generatingAi
-                ? 'Regenerating…'
-                : enhancedPersonalization
-                  ? 'Regenerate personalized drafts'
-                  : 'Regenerate drafts'}
-            </button>
-            <button
-              type="button"
-              onClick={handleSendPreview}
-              disabled={
-                !hasPreview ||
-                previewSending ||
-                !bulkSendEnabled ||
-                !activeConnection ||
-                activeConnection.needsReauth === true
-              }
-              className="inline-flex items-center justify-center rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
-            >
-              {previewSending
-                ? 'Sending previews…'
-                : !activeConnection
-                  ? 'Connect Gmail'
-                  : activeConnection.needsReauth
-                    ? 'Reconnect Gmail'
-                    : !hasPreview
-                      ? 'Generate previews first'
-                      : bulkSendEnabled
-                        ? 'Approve & send from preview'
-                        : 'Enable bulk send'}
-            </button>
-          </div>
-        </div>
-        <div className="mt-4 flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-          <label className="flex items-start gap-2">
-            <input
-              type="checkbox"
-              checked={enhancedPersonalization}
-              onChange={(event) => {
-                setEnhancedPersonalization(event.target.checked);
-                if (!event.target.checked) {
-                  setAllowToolUse(true);
-                }
-              }}
-              className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-2 focus:ring-slate-500/20"
-            />
-            <span>
-              <strong>Enhanced personalization</strong> — add bespoke hooks for each lead.
-              <br />
-              When on, AI may use additional research context and can take slightly longer.
-            </span>
-          </label>
-          <label className="flex items-start gap-2 pl-6 text-xs text-slate-500">
-            <input
-              type="checkbox"
-              checked={allowToolUse}
-              disabled={!enhancedPersonalization}
-              onChange={(event) => setAllowToolUse(event.target.checked)}
-              className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-slate-900 focus:ring-2 focus:ring-slate-500/20"
-            />
-            <span>
-              Allow research assistance (may incur higher AI usage). Turn off to keep copy strictly to known context.
-            </span>
-          </label>
-          <label className="flex items-start gap-2 text-xs text-slate-500">
-            <input
-              type="checkbox"
-              checked={bulkSendEnabled}
-              onChange={(event) => setBulkSendEnabled(event.target.checked)}
-              className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-slate-900 focus:ring-2 focus:ring-slate-500/20"
-            />
-            <span>
-              Enable one-click send from preview. When on, approving a draft sends immediately using the selected Gmail connection.
-            </span>
-          </label>
-        </div>
-        {hasPreview ? (
-          <div className="mt-6 overflow-x-auto rounded border border-slate-200">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-3 py-2 text-left font-semibold text-slate-700">Send</th>
-                  <th className="px-3 py-2 text-left font-semibold text-slate-700">Lead</th>
-                  <th className="px-3 py-2 text-left font-semibold text-slate-700">Subject</th>
-                  <th className="px-3 py-2 text-left font-semibold text-slate-700">Body</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(preview ?? []).map((row) => (
-                  <tr key={row.leadId} className="odd:bg-white even:bg-slate-50">
-                    <td className="px-3 py-2 text-slate-600">
-                      <button
-                        type="button"
-                        onClick={() => handleSendPreviewRow(row)}
-                        disabled={
-                          previewSendingId === row.leadId || previewSending || !bulkSendEnabled
-                        }
-                        className="rounded-full border border-slate-300 p-2 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-60"
-                        aria-label={`Send email to ${row.email}`}
-                      >
-                        ✈️
-                      </button>
-                    </td>
-                    <td className="px-3 py-2 text-slate-600">{row.email}</td>
-                    <td className="px-3 py-2 text-slate-700">{row.subject}</td>
-                    <td className="whitespace-pre-wrap px-3 py-2 text-slate-600">{row.body}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="mt-6 rounded border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
-            Generate previews to review personalized drafts and send from this panel. Use the lead selector above to choose who gets drafted first.
-          </div>
-        )}
-      </section>
 
       {aiDrafts ? (
         <section className="rounded-lg border border-emerald-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-medium text-slate-800">AI Drafts ({aiProvider}) — {aiDrafts.length} total</h2>
+              <h2 className="text-lg font-medium text-slate-800">Drafts — {aiDrafts.length} total</h2>
               <p className="mt-1 text-sm text-slate-600">
-                Drafts generated automatically for recent leads.{" "}
+                Personalized emails generated from your template.{" "}
                 {activeConnection
                   ? `Approvals will send immediately from ${activeConnection.email}.`
                   : "Connect Gmail to approve and send without copying manually."}
@@ -3224,27 +3064,27 @@ const resolveProvider = useCallback((): AiProvider | null => {
               >
                 Clear all drafts
               </button>
-              <button
-                type="button"
-                onClick={handleApproveAllDrafts}
-                disabled={
-                  bulkSending ||
-                  !aiDrafts ||
-                  aiDrafts.length === 0 ||
-                  !bulkSendEnabled ||
-                  !activeConnection ||
-                  activeConnection.needsReauth === true
-                }
-                className="inline-flex items-center justify-center rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
-              >
-                {bulkSending
-                  ? "Sending drafts…"
-                  : !activeConnection
-                    ? "Connect Gmail"
-                    : activeConnection.needsReauth
-                      ? "Reconnect Gmail"
-                      : "Approve & send all"}
-              </button>
+            <button
+              type="button"
+              onClick={handleApproveAllDrafts}
+              disabled={
+                bulkSending ||
+                !aiDrafts ||
+                aiDrafts.length === 0 ||
+                !bulkSendEnabled ||
+                !activeConnection ||
+                activeConnection.needsReauth === true
+              }
+              className="inline-flex items-center justify-center rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+            >
+              {bulkSending
+                ? "Sending drafts…"
+                : !activeConnection
+                  ? "Connect Gmail"
+                  : activeConnection.needsReauth
+                    ? "Reconnect Gmail"
+                    : "Approve & send all"}
+            </button>
             </div>
           </div>
           <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,240px)]">
