@@ -2544,13 +2544,6 @@ const resolveProvider = useCallback((): AiProvider | null => {
               </button>
               <button
                 type="button"
-                onClick={() => handlePreview(5)}
-                className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Preview on leads
-              </button>
-              <button
-                type="button"
                 onClick={() => handleGenerateAiTemplateBundle()}
                 disabled={suggestingTemplate}
                 className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
