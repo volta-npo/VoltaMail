@@ -353,76 +353,50 @@ export class AiClientService {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
-      let previousText = '';
+      let fullResponse = '';
       let totalYielded = 0;
 
+      // Read the entire stream first
       while (true) {
         const { value, done } = await reader.read();
         if (done) {
           break;
         }
-        buffer += decoder.decode(value, { stream: true });
-
-        let newlineIndex: number;
-        while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
-          const line = buffer.slice(0, newlineIndex).trim();
-          buffer = buffer.slice(newlineIndex + 1);
-          if (!line) {
-            continue;
-          }
-
-          let parsed: any;
-          try {
-            parsed = JSON.parse(line);
-          } catch (parseError) {
-            this.logger.warn(`[Gemini] Failed to parse line: ${line.slice(0, 200)}`);
-            continue;
-          }
-
-          const parts = parsed?.candidates?.[0]?.content?.parts ?? [];
-          
-          // Log if we got a response but no parts (e.g., content filtered)
-          if (parsed?.candidates?.[0] && parts.length === 0) {
-            this.logger.warn(`[Gemini] Response has no parts. Full candidate: ${JSON.stringify(parsed.candidates[0]).slice(0, 500)}`);
-          }
-          
-          const text = parts
-            .map((part: { text?: string }) => part?.text ?? '')
-            .join('');
-
-          if (!text) {
-            continue;
-          }
-
-          if (text.length > previousText.length) {
-            const diff = text.slice(previousText.length);
-            previousText = text;
-            if (diff) {
-              totalYielded += diff.length;
-              yield diff;
-            }
-          }
-        }
+        fullResponse += decoder.decode(value, { stream: true });
       }
 
-      if (buffer.trim().length > 0) {
-        try {
-          const parsed = JSON.parse(buffer.trim());
-          const parts = parsed?.candidates?.[0]?.content?.parts ?? [];
+      this.logger.debug(`[Gemini] Received ${fullResponse.length} chars from stream`);
+
+      // Try to parse as JSON array (Gemini's format)
+      try {
+        const parsed = JSON.parse(fullResponse);
+        
+        // Handle both array and single object responses
+        const responses = Array.isArray(parsed) ? parsed : [parsed];
+        
+        // Accumulate all text chunks
+        let accumulatedText = '';
+        for (const chunk of responses) {
+          const parts = chunk?.candidates?.[0]?.content?.parts ?? [];
           const text = parts
             .map((part: { text?: string }) => part?.text ?? '')
             .join('');
-          if (text.length > previousText.length) {
-            const diff = text.slice(previousText.length);
-            if (diff) {
-              totalYielded += diff.length;
-              yield diff;
-            }
+          
+          if (text) {
+            accumulatedText += text;
           }
-        } catch {
-          // ignore trailing parse errors
         }
+        
+        this.logger.debug(`[Gemini] Extracted ${accumulatedText.length} chars of content`);
+        
+        if (accumulatedText) {
+          totalYielded = accumulatedText.length;
+          yield accumulatedText;
+        }
+      } catch (parseError) {
+        this.logger.error(`[Gemini] Failed to parse response: ${parseError.message}`);
+        this.logger.debug(`[Gemini] Raw response (first 500 chars): ${fullResponse.slice(0, 500)}`);
+        throw new InternalServerErrorException('Failed to parse Gemini response');
       }
 
       this.logger.debug(`[Gemini] Stream complete. Total yielded: ${totalYielded} chars`);
