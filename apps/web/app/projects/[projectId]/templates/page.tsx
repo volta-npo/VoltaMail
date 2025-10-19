@@ -13,7 +13,6 @@ import {
   GmailConnectionSummary,
   KnowledgeSource,
   LeadSummary,
-  RenderedLeadPreview,
   SendDraftResponse,
   TemplateSummary,
   TemplateVersionSummary,
@@ -1955,7 +1954,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
     enhancedPersonalization,
     allowToolUse,
     bulkSendEnabled
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   ]);
 
   if (status === "loading" || !sessionToken) {
