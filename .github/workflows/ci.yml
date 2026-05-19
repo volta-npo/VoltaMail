@@ -30,3 +30,5 @@ jobs:
         run: pnpm format
       - name: Validate Prisma schema
         run: pnpm db:validate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/voltamail
