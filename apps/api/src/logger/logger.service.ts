@@ -12,21 +12,21 @@ export class LoggerService implements NestLoggerService {
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         winston.format.errors({ stack: true }),
         winston.format.splat(),
-        winston.format.json()
+        winston.format.json(),
       ),
       defaultMeta: { service: 'email-automation-api' },
       transports: [
         new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
-        new winston.transports.File({ filename: 'logs/combined.log' })
-      ]
+        new winston.transports.File({ filename: 'logs/combined.log' }),
+      ],
     });
 
     // Also log to console in development
     if (process.env.NODE_ENV !== 'production') {
       this.logger.add(
         new winston.transports.Console({
-          format: winston.format.combine(winston.format.colorize(), winston.format.simple())
-        })
+          format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
+        }),
       );
     }
   }
@@ -56,7 +56,7 @@ export class LoggerService implements NestLoggerService {
     level: 'info' | 'error' | 'warn' | 'debug',
     message: string,
     correlationId?: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>,
   ) {
     this.logger.log(level, message, { correlationId, ...metadata });
   }
@@ -66,15 +66,15 @@ export class LoggerService implements NestLoggerService {
     this.logger.info(`Performance: ${operation}`, {
       duration,
       correlationId,
-      type: 'performance'
+      type: 'performance',
     });
   }
 
   // Security logging
-  logSecurity(event: string, metadata?: Record<string, any>) {
+  logSecurity(event: string, metadata?: Record<string, unknown>) {
     this.logger.warn(`Security: ${event}`, {
       ...metadata,
-      type: 'security'
+      type: 'security',
     });
   }
 }

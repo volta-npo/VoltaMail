@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 type Provider = 'openrouter' | 'openai' | 'gemini';
@@ -33,14 +38,14 @@ interface GeminiResponse {
 export const DEFAULT_MODELS: Record<Provider, string> = {
   openrouter: 'z-ai/glm-4.5-air:free',
   openai: 'gpt-4o-mini',
-  gemini: 'gemini-2.5-flash'
+  gemini: 'gemini-2.5-flash',
 };
 
 // Default fetch timeouts per provider (in milliseconds)
 const PROVIDER_FETCH_TIMEOUTS: Record<Provider, number> = {
   openrouter: 60000, // 60s for free models
-  openai: 45000,     // 45s for paid models
-  gemini: 45000      // 45s for Gemini
+  openai: 45000, // 45s for paid models
+  gemini: 45000, // 45s for Gemini
 };
 
 @Injectable()
@@ -91,7 +96,7 @@ export class AiClientService {
       process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       throw new BadRequestException(
-        'OpenRouter API key is not configured. Add one in AI settings or set OPENROUTER_API_KEY.'
+        'OpenRouter API key is not configured. Add one in AI settings or set OPENROUTER_API_KEY.',
       );
     }
 
@@ -107,31 +112,31 @@ export class AiClientService {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey}`,
           'HTTP-Referer': this.configService.get<string>('APP_BASE_URL') ?? 'http://localhost:3000',
-          'X-Title': 'VoltaMail'
+          'X-Title': 'VoltaMail',
         },
         body: JSON.stringify({
           model: this.normalizeOpenRouterModel(options.model),
           messages: [
             { role: 'system', content: options.systemPrompt },
-            { role: 'user', content: options.userPrompt }
-          ]
-        })
+            { role: 'user', content: options.userPrompt },
+          ],
+        }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
         if (response.status === 404 && errorText.includes('Free model publication')) {
           throw new BadRequestException(
-            'OpenRouter free models require enabling "Free model publication" in your privacy settings. Visit https://openrouter.ai/settings/privacy to update the policy or switch to another provider.'
+            'OpenRouter free models require enabling "Free model publication" in your privacy settings. Visit https://openrouter.ai/settings/privacy to update the policy or switch to another provider.',
           );
         }
         if (response.status === 429) {
           throw new BadRequestException(
-            'OpenRouter rate limit exceeded. Please try again in a moment or switch to another AI provider.'
+            'OpenRouter rate limit exceeded. Please try again in a moment or switch to another AI provider.',
           );
         }
         throw new InternalServerErrorException(
-          `OpenRouter API error: ${response.status} - ${errorText}`
+          `OpenRouter API error: ${response.status} - ${errorText}`,
         );
       }
 
@@ -145,7 +150,7 @@ export class AiClientService {
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
           throw new BadRequestException(
-            `OpenRouter request timed out after ${Math.round(timeoutMs / 1000)}s. The AI provider is taking too long. Try reducing the number of leads or switching to a faster model.`
+            `OpenRouter request timed out after ${Math.round(timeoutMs / 1000)}s. The AI provider is taking too long. Try reducing the number of leads or switching to a faster model.`,
           );
         }
         if (error instanceof BadRequestException || error instanceof InternalServerErrorException) {
@@ -163,7 +168,7 @@ export class AiClientService {
     const apiKey = options.apiKey?.trim() || this.configService.get<string>('OPENAI_API_KEY');
     if (!apiKey) {
       throw new BadRequestException(
-        'OpenAI API key is not configured. Add one in AI settings or set OPENAI_API_KEY.'
+        'OpenAI API key is not configured. Add one in AI settings or set OPENAI_API_KEY.',
       );
     }
 
@@ -177,26 +182,26 @@ export class AiClientService {
         signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
           model: options.model ?? DEFAULT_MODELS.openai,
           messages: [
             { role: 'system', content: options.systemPrompt },
-            { role: 'user', content: options.userPrompt }
-          ]
-        })
+            { role: 'user', content: options.userPrompt },
+          ],
+        }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
         if (response.status === 429) {
-          throw new BadRequestException(
-            'OpenAI rate limit exceeded. Please try again in a moment.'
+          throw new InternalServerErrorException(
+            'OpenAI rate limit exceeded. Please try again in a moment.',
           );
         }
         throw new InternalServerErrorException(
-          `OpenAI API error: ${response.status} - ${errorText}`
+          `OpenAI API error: ${response.status} - ${errorText}`,
         );
       }
 
@@ -210,7 +215,7 @@ export class AiClientService {
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
           throw new BadRequestException(
-            `OpenAI request timed out after ${Math.round(timeoutMs / 1000)}s. The API is taking too long. Try reducing the number of leads.`
+            `OpenAI request timed out after ${Math.round(timeoutMs / 1000)}s. The API is taking too long. Try reducing the number of leads.`,
           );
         }
         if (error instanceof BadRequestException || error instanceof InternalServerErrorException) {
@@ -228,7 +233,7 @@ export class AiClientService {
     const apiKey = options.apiKey?.trim() || this.configService.get<string>('GEMINI_API_KEY');
     if (!apiKey) {
       throw new BadRequestException(
-        'Gemini API key is not configured. Add one in AI settings or set GEMINI_API_KEY.'
+        'Gemini API key is not configured. Add one in AI settings or set GEMINI_API_KEY.',
       );
     }
 
@@ -245,30 +250,27 @@ export class AiClientService {
           method: 'POST',
           signal: controller.signal,
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             contents: [
               {
-                parts: [
-                  { text: options.systemPrompt },
-                  { text: options.userPrompt }
-                ]
-              }
-            ]
-          })
-        }
+                parts: [{ text: options.systemPrompt }, { text: options.userPrompt }],
+              },
+            ],
+          }),
+        },
       );
 
       if (!response.ok) {
         const errorText = await response.text();
         if (response.status === 429) {
           throw new BadRequestException(
-            'Gemini rate limit exceeded. Please try again in a moment.'
+            'Gemini rate limit exceeded. Please try again in a moment.',
           );
         }
         throw new InternalServerErrorException(
-          `Gemini API error: ${response.status} - ${errorText}`
+          `Gemini API error: ${response.status} - ${errorText}`,
         );
       }
 
@@ -282,7 +284,7 @@ export class AiClientService {
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
           throw new BadRequestException(
-            `Gemini request timed out after ${Math.round(timeoutMs / 1000)}s. The API is taking too long. Try reducing the number of leads.`
+            `Gemini request timed out after ${Math.round(timeoutMs / 1000)}s. The API is taking too long. Try reducing the number of leads.`,
           );
         }
         if (error instanceof BadRequestException || error instanceof InternalServerErrorException) {
@@ -300,7 +302,7 @@ export class AiClientService {
     const apiKey = options.apiKey?.trim() || this.configService.get<string>('GEMINI_API_KEY');
     if (!apiKey) {
       throw new BadRequestException(
-        'Gemini API key is not configured. Add one in AI settings or set GEMINI_API_KEY.'
+        'Gemini API key is not configured. Add one in AI settings or set GEMINI_API_KEY.',
       );
     }
 
@@ -317,16 +319,13 @@ export class AiClientService {
           method: 'POST',
           signal: controller.signal,
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             contents: [
               {
-                parts: [
-                  { text: options.systemPrompt },
-                  { text: options.userPrompt }
-                ]
-              }
+                parts: [{ text: options.systemPrompt }, { text: options.userPrompt }],
+              },
             ],
             generationConfig: {
               responseMimeType: 'application/json',
@@ -335,18 +334,18 @@ export class AiClientService {
                 properties: {
                   subject: {
                     type: 'string',
-                    description: 'Email subject line'
+                    description: 'Email subject line',
                   },
                   body: {
                     type: 'string',
-                    description: 'Email body content'
-                  }
+                    description: 'Email body content',
+                  },
                 },
-                required: ['subject', 'body']
-              }
-            }
-          })
-        }
+                required: ['subject', 'body'],
+              },
+            },
+          }),
+        },
       );
 
       if (!response.ok) {
@@ -354,11 +353,11 @@ export class AiClientService {
         this.logger.error(`[Gemini] API error ${response.status}: ${errorText}`);
         if (response.status === 429) {
           throw new BadRequestException(
-            'Gemini rate limit exceeded. Please try again in a moment.'
+            'Gemini rate limit exceeded. Please try again in a moment.',
           );
         }
         throw new InternalServerErrorException(
-          `Gemini API error: ${response.status} - ${errorText}`
+          `Gemini API error: ${response.status} - ${errorText}`,
         );
       }
 
@@ -374,7 +373,7 @@ export class AiClientService {
       let totalYielded = 0;
 
       // Read the entire stream first
-      while (true) {
+      for (;;) {
         const { value, done } = await reader.read();
         if (done) {
           break;
@@ -387,38 +386,40 @@ export class AiClientService {
       // Parse the streaming JSON array from Gemini
       try {
         const parsed = JSON.parse(fullResponse);
-        
+
         // Handle both array and single object responses
         const responses = Array.isArray(parsed) ? parsed : [parsed];
-        
+
         // Accumulate all text chunks from the structured JSON response
         let accumulatedText = '';
         for (const chunk of responses) {
           const parts = chunk?.candidates?.[0]?.content?.parts ?? [];
-          const text = parts
-            .map((part: { text?: string }) => part?.text ?? '')
-            .join('');
-          
+          const text = parts.map((part: { text?: string }) => part?.text ?? '').join('');
+
           if (text) {
             accumulatedText += text;
           }
         }
-        
+
         this.logger.debug(`[Gemini] Extracted ${accumulatedText.length} chars of content`);
-        
+
         // Validate it's valid JSON with subject and body
         if (accumulatedText) {
           try {
             const validated = JSON.parse(accumulatedText);
             if (!validated.subject || !validated.body) {
               this.logger.warn('[Gemini] Response missing subject or body fields');
-              throw new InternalServerErrorException('Gemini response missing required fields (subject, body)');
+              throw new InternalServerErrorException(
+                'Gemini response missing required fields (subject, body)',
+              );
             }
           } catch (validationError) {
-            this.logger.error(`[Gemini] Response is not valid JSON: ${accumulatedText.slice(0, 200)}`);
+            this.logger.error(
+              `[Gemini] Response is not valid JSON: ${accumulatedText.slice(0, 200)}`,
+            );
             throw new InternalServerErrorException('Gemini did not return valid JSON');
           }
-          
+
           totalYielded = accumulatedText.length;
           yield accumulatedText;
         }
@@ -430,17 +431,17 @@ export class AiClientService {
       }
 
       this.logger.debug(`[Gemini] Stream complete. Total yielded: ${totalYielded} chars`);
-      
+
       if (totalYielded === 0) {
         throw new InternalServerErrorException(
-          'Gemini returned an empty streaming response. This may indicate content was filtered or blocked by safety settings.'
+          'Gemini returned an empty streaming response. This may indicate content was filtered or blocked by safety settings.',
         );
       }
     } catch (error) {
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
           throw new BadRequestException(
-            `Gemini request timed out after ${Math.round(timeoutMs / 1000)}s. The API is taking too long. Try reducing the number of leads.`
+            `Gemini request timed out after ${Math.round(timeoutMs / 1000)}s. The API is taking too long. Try reducing the number of leads.`,
           );
         }
         if (error instanceof BadRequestException || error instanceof InternalServerErrorException) {

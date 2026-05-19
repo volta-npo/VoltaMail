@@ -1,19 +1,25 @@
 {
-  "name": "smb-gmail-ai-outreach",
+  "name": "@volta-npo/voltamail",
   "private": true,
   "packageManager": "pnpm@8.15.4",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
     "test": "turbo test",
-    "format": "prettier --check \"**/*.{js,ts,tsx,json,md,css}\"",
-    "format:write": "prettier --write \"**/*.{js,ts,tsx,json,md,css}\"",
+    "ci": "pnpm lint && pnpm build && pnpm test && pnpm format && pnpm db:validate",
+    "format": "prettier --check \"{apps,packages,.github}/**/*.{json,md,css,yml,yaml}\" \"*.{json,md,js,ts}\"",
+    "format:write": "prettier --write \"{apps,packages,.github}/**/*.{json,md,css,yml,yaml}\" \"*.{json,md,js,ts}\"",
     "db:start": "docker compose up -d db",
     "db:stop": "docker compose stop db",
     "db:logs": "docker compose logs -f db",
     "db:reset": "docker compose down -v db",
-    "dev:setup": "pnpm db:start && pnpm --filter @email-automation/database db:push"
+    "dev:setup": "pnpm db:start && pnpm --filter @email-automation/database db:push",
+    "db:validate": "pnpm --filter @email-automation/database db:validate",
+    "release:check": "pnpm ci"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^14.2.4",

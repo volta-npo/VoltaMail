@@ -26,3 +26,7 @@ jobs:
         run: pnpm build
       - name: Run tests
         run: pnpm test
+      - name: Format check
+        run: pnpm format
+      - name: Validate Prisma schema
+        run: pnpm db:validate
