@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { TemplatesService } from './templates.service';
 import { PrismaService } from '../prisma.service';
 import { ProjectAccessService } from '../projects/project-access.service';
@@ -19,7 +19,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
   const mockUser: AuthenticatedUser = {
     id: 'user-123',
     organizationId: 'org-123',
-    email: 'test@example.com'
+    email: 'test@example.com',
   };
 
   const mockTemplate = {
@@ -33,8 +33,8 @@ describe('TemplatesService - AI Timeout Fixes', () => {
     activeVersionId: 'version-123',
     project: {
       brandingJson: {
-        knowledgeBase: 'Test brand guidelines'
-      }
+        knowledgeBase: 'Test brand guidelines',
+      },
     },
     activeVersion: {
       id: 'version-123',
@@ -50,8 +50,8 @@ describe('TemplatesService - AI Timeout Fixes', () => {
       isActive: true,
       createdByAiProvider: null,
       createdAt: new Date(),
-      updatedAt: new Date()
-    }
+      updatedAt: new Date(),
+    },
   };
 
   beforeEach(() => {
@@ -61,71 +61,61 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         findMany: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
-        delete: vi.fn()
+        delete: vi.fn(),
       },
       lead: {
         findUnique: vi.fn(),
-        findMany: vi.fn()
+        findMany: vi.fn(),
       },
       project: {
-        findUnique: vi.fn()
+        findUnique: vi.fn(),
       },
       templateVersion: {
         create: vi.fn(),
         update: vi.fn(),
         updateMany: vi.fn(),
-        deleteMany: vi.fn()
+        deleteMany: vi.fn(),
       },
       auditLog: {
-        create: vi.fn()
+        create: vi.fn(),
       },
-      $transaction: vi.fn()
+      $transaction: vi.fn(),
     } as any;
 
     projectAccess = {
-      ensureProjectAccess: vi.fn().mockResolvedValue(undefined)
+      ensureProjectAccess: vi.fn().mockResolvedValue(undefined),
     } as any;
 
     aiClient = {
-      generate: vi.fn()
+      generate: vi.fn(),
     } as any;
 
     gmailService = {
-      sendEmail: vi.fn()
+      sendEmail: vi.fn(),
     } as any;
 
     aiConfig = {
       resolveGenerationConfig: vi.fn().mockResolvedValue({
         provider: 'openai',
         model: 'gpt-4',
-        apiKey: 'test-key'
-      })
+        apiKey: 'test-key',
+      }),
     } as any;
 
-    service = new TemplatesService(
-      prisma,
-      projectAccess,
-      aiClient,
-      gmailService,
-      aiConfig
-    );
+    service = new TemplatesService(prisma, projectAccess, aiClient, gmailService, aiConfig);
   });
 
   describe('Scenario 1: Zero Leads - Immediate Error', () => {
     it('should throw error immediately when no leads are available for suggestTemplate', async () => {
       vi.spyOn(prisma.project, 'findUnique').mockResolvedValue({
         id: 'project-123',
-        brandingJson: {}
+        brandingJson: {},
       } as any);
 
       vi.spyOn(prisma.lead, 'findMany').mockResolvedValue([]);
 
       await expect(
-        service.suggestTemplate(
-          'project-123',
-          { leadSampleSize: 10 },
-          mockUser
-        )
+        service.suggestTemplate('project-123', { leadSampleSize: 10 }, mockUser),
       ).rejects.toThrow('Import leads before asking AI to draft a template.');
 
       // Verify AI was never called
@@ -137,11 +127,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
       vi.spyOn(prisma.lead, 'findMany').mockResolvedValue([]);
 
       await expect(
-        service.generateAiDrafts(
-          'template-123',
-          { sampleSize: 3 },
-          mockUser
-        )
+        service.generateAiDrafts('template-123', { sampleSize: 3 }, mockUser),
       ).rejects.toThrow('No leads available to generate drafts.');
 
       // Verify AI was never called
@@ -164,7 +150,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         phone: null,
         address: null,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
 
       vi.spyOn(prisma.template, 'findUnique').mockResolvedValue(mockTemplate as any);
@@ -174,11 +160,13 @@ describe('TemplatesService - AI Timeout Fixes', () => {
       vi.spyOn(aiClient, 'generate').mockImplementation(() => {
         return new Promise((resolve) => {
           setTimeout(() => {
-            resolve(JSON.stringify({
-              subject: 'Personalized Subject',
-              body: 'Personalized body text',
-              html: '<p>Personalized HTML</p>'
-            }));
+            resolve(
+              JSON.stringify({
+                subject: 'Personalized Subject',
+                body: 'Personalized body text',
+                html: '<p>Personalized HTML</p>',
+              }),
+            );
           }, 1000);
         });
       });
@@ -187,7 +175,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
       const results = await service.generateAiDrafts(
         'template-123',
         { leadIds: ['lead-123'] },
-        mockUser
+        mockUser,
       );
       const duration = Date.now() - startTime;
 
@@ -213,7 +201,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         phone: null,
         address: null,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       }));
 
       vi.spyOn(prisma.template, 'findUnique').mockResolvedValue(mockTemplate as any);
@@ -224,14 +212,14 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         JSON.stringify({
           subject: 'Test Subject',
           body: 'Test body',
-          html: '<p>Test HTML</p>'
-        })
+          html: '<p>Test HTML</p>',
+        }),
       );
 
       const results = await service.generateAiDrafts(
         'template-123',
-        { leadIds: leads.map(l => l.id) },
-        mockUser
+        { leadIds: leads.map((l) => l.id) },
+        mockUser,
       );
 
       expect(results).toHaveLength(3);
@@ -252,7 +240,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         phone: null,
         address: null,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       }));
 
       vi.spyOn(prisma.template, 'findUnique').mockResolvedValue(mockTemplate as any);
@@ -262,14 +250,14 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         JSON.stringify({
           subject: 'Test Subject',
           body: 'Test body',
-          html: '<p>Test HTML</p>'
-        })
+          html: '<p>Test HTML</p>',
+        }),
       );
 
       const results = await service.generateAiDrafts(
         'template-123',
-        { leadIds: leads.map(l => l.id) },
-        mockUser
+        { leadIds: leads.map((l) => l.id) },
+        mockUser,
       );
 
       expect(results).toHaveLength(5);
@@ -289,7 +277,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         phone: null,
         address: null,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       }));
 
       vi.spyOn(prisma.template, 'findUnique').mockResolvedValue(mockTemplate as any);
@@ -299,14 +287,14 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         JSON.stringify({
           subject: 'Test Subject',
           body: 'Test body',
-          html: '<p>Test HTML</p>'
-        })
+          html: '<p>Test HTML</p>',
+        }),
       );
 
       const results = await service.generateAiDrafts(
         'template-123',
-        { leadIds: leads.map(l => l.id) },
-        mockUser
+        { leadIds: leads.map((l) => l.id) },
+        mockUser,
       );
 
       expect(results).toHaveLength(10);
@@ -328,7 +316,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         phone: null,
         address: null,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
 
       vi.spyOn(prisma.template, 'findUnique').mockResolvedValue(mockTemplate as any);
@@ -338,21 +326,19 @@ describe('TemplatesService - AI Timeout Fixes', () => {
       vi.spyOn(aiClient, 'generate').mockImplementation(() => {
         return new Promise((resolve) => {
           setTimeout(() => {
-            resolve(JSON.stringify({
-              subject: 'Test',
-              body: 'Test',
-              html: '<p>Test</p>'
-            }));
+            resolve(
+              JSON.stringify({
+                subject: 'Test',
+                body: 'Test',
+                html: '<p>Test</p>',
+              }),
+            );
           }, 30000);
         });
       });
 
       await expect(
-        service.generateAiDrafts(
-          'template-123',
-          { leadIds: ['lead-123'] },
-          mockUser
-        )
+        service.generateAiDrafts('template-123', { leadIds: ['lead-123'] }, mockUser),
       ).rejects.toThrow(BadRequestException);
     }, 35000); // Increase test timeout to allow for the AI timeout
 
@@ -364,7 +350,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         projectId: 'project-123',
         customJson: {},
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
 
       vi.spyOn(prisma.template, 'findUnique').mockResolvedValue(mockTemplate as any);
@@ -377,11 +363,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
       });
 
       try {
-        await service.generateAiDrafts(
-          'template-123',
-          { leadIds: ['lead-123'] },
-          mockUser
-        );
+        await service.generateAiDrafts('template-123', { leadIds: ['lead-123'] }, mockUser);
         expect.fail('Should have thrown timeout error');
       } catch (error: any) {
         expect(error).toBeInstanceOf(BadRequestException);
@@ -401,7 +383,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         projectId: 'project-123',
         customJson: {},
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       }));
 
       vi.spyOn(prisma.template, 'findUnique').mockResolvedValue(mockTemplate as any);
@@ -410,7 +392,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
       vi.spyOn(aiConfig, 'resolveGenerationConfig').mockResolvedValue({
         provider: 'openrouter',
         model: 'meta-llama/llama-3.2-3b-instruct:free',
-        apiKey: 'test-key'
+        apiKey: 'test-key',
       });
 
       let concurrentCalls = 0;
@@ -423,11 +405,13 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         return new Promise((resolve) => {
           setTimeout(() => {
             concurrentCalls--;
-            resolve(JSON.stringify({
-              subject: 'Test',
-              body: 'Test',
-              html: '<p>Test</p>'
-            }));
+            resolve(
+              JSON.stringify({
+                subject: 'Test',
+                body: 'Test',
+                html: '<p>Test</p>',
+              }),
+            );
           }, 100);
         });
       });
@@ -435,11 +419,11 @@ describe('TemplatesService - AI Timeout Fixes', () => {
       await service.generateAiDrafts(
         'template-123',
         {
-          leadIds: leads.map(l => l.id),
+          leadIds: leads.map((l) => l.id),
           provider: 'openrouter',
-          model: 'meta-llama/llama-3.2-3b-instruct:free'
+          model: 'meta-llama/llama-3.2-3b-instruct:free',
         },
-        mockUser
+        mockUser,
       );
 
       // With 2 workers, max concurrent calls should be 2
@@ -454,7 +438,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         projectId: 'project-123',
         customJson: {},
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       }));
 
       vi.spyOn(prisma.template, 'findUnique').mockResolvedValue(mockTemplate as any);
@@ -463,7 +447,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
       vi.spyOn(aiConfig, 'resolveGenerationConfig').mockResolvedValue({
         provider: 'openai',
         model: 'gpt-4',
-        apiKey: 'test-key'
+        apiKey: 'test-key',
       });
 
       let maxConcurrentCalls = 0;
@@ -476,11 +460,13 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         return new Promise((resolve) => {
           setTimeout(() => {
             concurrentCalls--;
-            resolve(JSON.stringify({
-              subject: 'Test',
-              body: 'Test',
-              html: '<p>Test</p>'
-            }));
+            resolve(
+              JSON.stringify({
+                subject: 'Test',
+                body: 'Test',
+                html: '<p>Test</p>',
+              }),
+            );
           }, 100);
         });
       });
@@ -488,11 +474,11 @@ describe('TemplatesService - AI Timeout Fixes', () => {
       await service.generateAiDrafts(
         'template-123',
         {
-          leadIds: leads.map(l => l.id),
+          leadIds: leads.map((l) => l.id),
           provider: 'openai',
-          model: 'gpt-4'
+          model: 'gpt-4',
         },
-        mockUser
+        mockUser,
       );
 
       // With 6 workers, max concurrent calls should be up to 6
@@ -511,7 +497,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         projectId: 'project-123',
         customJson: {},
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       }));
 
       vi.spyOn(prisma.template, 'findUnique').mockResolvedValue(mockTemplate as any);
@@ -527,20 +513,18 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         return new Promise((resolve) => {
           setTimeout(() => {
             concurrentCalls--;
-            resolve(JSON.stringify({
-              subject: 'Test',
-              body: 'Test',
-              html: '<p>Test</p>'
-            }));
+            resolve(
+              JSON.stringify({
+                subject: 'Test',
+                body: 'Test',
+                html: '<p>Test</p>',
+              }),
+            );
           }, 100);
         });
       });
 
-      await service.generateAiDrafts(
-        'template-123',
-        { leadIds: leads.map(l => l.id) },
-        mockUser
-      );
+      await service.generateAiDrafts('template-123', { leadIds: leads.map((l) => l.id) }, mockUser);
 
       expect(maxConcurrentCalls).toBeLessThanOrEqual(3);
 
@@ -562,7 +546,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         projectId: 'project-123',
         customJson: {},
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
 
       vi.spyOn(prisma.template, 'findUnique').mockResolvedValue(mockTemplate as any);
@@ -571,15 +555,15 @@ describe('TemplatesService - AI Timeout Fixes', () => {
       vi.spyOn(aiConfig, 'resolveGenerationConfig').mockResolvedValue({
         provider: 'openrouter',
         model: 'meta-llama/llama-3.2-3b-instruct:free',
-        apiKey: 'test-key'
+        apiKey: 'test-key',
       });
 
       vi.spyOn(aiClient, 'generate').mockResolvedValue(
         JSON.stringify({
           subject: 'Test',
           body: 'Test',
-          html: '<p>Test</p>'
-        })
+          html: '<p>Test</p>',
+        }),
       );
 
       const result = await service.generateAiDrafts(
@@ -587,9 +571,9 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         {
           leadIds: ['lead-123'],
           provider: 'openrouter',
-          model: 'meta-llama/llama-3.2-3b-instruct:free'
+          model: 'meta-llama/llama-3.2-3b-instruct:free',
         },
-        mockUser
+        mockUser,
       );
 
       expect(result).toHaveLength(1);
@@ -604,7 +588,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         projectId: 'project-123',
         customJson: {},
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
 
       vi.spyOn(prisma.template, 'findUnique').mockResolvedValue(mockTemplate as any);
@@ -613,15 +597,15 @@ describe('TemplatesService - AI Timeout Fixes', () => {
       vi.spyOn(aiConfig, 'resolveGenerationConfig').mockResolvedValue({
         provider: 'openai',
         model: 'gpt-4',
-        apiKey: 'test-key'
+        apiKey: 'test-key',
       });
 
       vi.spyOn(aiClient, 'generate').mockResolvedValue(
         JSON.stringify({
           subject: 'Test',
           body: 'Test',
-          html: '<p>Test</p>'
-        })
+          html: '<p>Test</p>',
+        }),
       );
 
       const result = await service.generateAiDrafts(
@@ -629,9 +613,9 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         {
           leadIds: ['lead-123'],
           provider: 'openai',
-          model: 'gpt-4'
+          model: 'gpt-4',
         },
-        mockUser
+        mockUser,
       );
 
       expect(result).toHaveLength(1);
@@ -646,7 +630,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         projectId: 'project-123',
         customJson: {},
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       }));
 
       vi.spyOn(prisma.template, 'findUnique').mockResolvedValue(mockTemplate as any);
@@ -655,7 +639,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
       vi.spyOn(aiConfig, 'resolveGenerationConfig').mockResolvedValue({
         provider: 'gemini',
         model: 'gemini-pro',
-        apiKey: 'test-key'
+        apiKey: 'test-key',
       });
 
       let maxConcurrentCalls = 0;
@@ -668,11 +652,13 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         return new Promise((resolve) => {
           setTimeout(() => {
             concurrentCalls--;
-            resolve(JSON.stringify({
-              subject: 'Test',
-              body: 'Test',
-              html: '<p>Test</p>'
-            }));
+            resolve(
+              JSON.stringify({
+                subject: 'Test',
+                body: 'Test',
+                html: '<p>Test</p>',
+              }),
+            );
           }, 100);
         });
       });
@@ -680,11 +666,11 @@ describe('TemplatesService - AI Timeout Fixes', () => {
       await service.generateAiDrafts(
         'template-123',
         {
-          leadIds: leads.map(l => l.id),
+          leadIds: leads.map((l) => l.id),
           provider: 'gemini',
-          model: 'gemini-pro'
+          model: 'gemini-pro',
         },
-        mockUser
+        mockUser,
       );
 
       // Gemini should use 3 workers
@@ -701,7 +687,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         projectId: 'project-123',
         customJson: {},
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       }));
 
       vi.spyOn(prisma.template, 'findUnique').mockResolvedValue(mockTemplate as any);
@@ -717,17 +703,13 @@ describe('TemplatesService - AI Timeout Fixes', () => {
           JSON.stringify({
             subject: 'Test',
             body: 'Test',
-            html: '<p>Test</p>'
-          })
+            html: '<p>Test</p>',
+          }),
         );
       });
 
       await expect(
-        service.generateAiDrafts(
-          'template-123',
-          { leadIds: leads.map(l => l.id) },
-          mockUser
-        )
+        service.generateAiDrafts('template-123', { leadIds: leads.map((l) => l.id) }, mockUser),
       ).rejects.toThrow('AI service error');
     });
 
@@ -739,7 +721,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         projectId: 'project-123',
         customJson: {},
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
 
       vi.spyOn(prisma.template, 'findUnique').mockResolvedValue(mockTemplate as any);
@@ -751,7 +733,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
       const results = await service.generateAiDrafts(
         'template-123',
         { leadIds: ['lead-123'] },
-        mockUser
+        mockUser,
       );
 
       // Should still return a result with fallback values
@@ -768,7 +750,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         projectId: 'project-123',
         customJson: {},
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
 
       vi.spyOn(prisma.template, 'findUnique').mockResolvedValue(mockTemplate as any);
@@ -779,7 +761,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
       const results = await service.generateAiDrafts(
         'template-123',
         { leadIds: ['lead-123'] },
-        mockUser
+        mockUser,
       );
 
       expect(results).toHaveLength(1);
@@ -795,10 +777,12 @@ describe('TemplatesService - AI Timeout Fixes', () => {
       vi.spyOn(aiClient, 'generate').mockImplementation(() => {
         return new Promise((resolve) => {
           setTimeout(() => {
-            resolve(JSON.stringify({
-              message: 'Here are my suggestions',
-              updates: { subject: 'Better subject' }
-            }));
+            resolve(
+              JSON.stringify({
+                message: 'Here are my suggestions',
+                updates: { subject: 'Better subject' },
+              }),
+            );
           }, 1000);
         });
       });
@@ -806,7 +790,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
       const result = await service.chatWithTemplate(
         'template-123',
         { message: 'How can I improve this?' },
-        mockUser
+        mockUser,
       );
 
       expect(result.message).toBeDefined();
@@ -822,18 +806,14 @@ describe('TemplatesService - AI Timeout Fixes', () => {
       });
 
       await expect(
-        service.chatWithTemplate(
-          'template-123',
-          { message: 'How can I improve this?' },
-          mockUser
-        )
+        service.chatWithTemplate('template-123', { message: 'How can I improve this?' }, mockUser),
       ).rejects.toThrow(BadRequestException);
     }, 35000);
 
     it('should apply timeout to suggestTemplate', async () => {
       vi.spyOn(prisma.project, 'findUnique').mockResolvedValue({
         id: 'project-123',
-        brandingJson: { knowledgeBase: 'Test brand' }
+        brandingJson: { knowledgeBase: 'Test brand' },
       } as any);
 
       const leads = Array.from({ length: 3 }, (_, i) => ({
@@ -843,7 +823,7 @@ describe('TemplatesService - AI Timeout Fixes', () => {
         projectId: 'project-123',
         customJson: {},
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       }));
 
       vi.spyOn(prisma.lead, 'findMany').mockResolvedValue(leads);
@@ -851,15 +831,11 @@ describe('TemplatesService - AI Timeout Fixes', () => {
       vi.spyOn(aiClient, 'generate').mockResolvedValue(
         JSON.stringify({
           subject: 'Suggested Subject',
-          body: 'Suggested body text'
-        })
+          body: 'Suggested body text',
+        }),
       );
 
-      const result = await service.suggestTemplate(
-        'project-123',
-        { leadSampleSize: 3 },
-        mockUser
-      );
+      const result = await service.suggestTemplate('project-123', { leadSampleSize: 3 }, mockUser);
 
       expect(result.subject).toBe('Suggested Subject');
       expect(result.body).toBe('Suggested body text');

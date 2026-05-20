@@ -11,8 +11,5 @@
     "experimentalDecorators": true
   },
   "include": ["src"],
-  "references": [
-    { "path": "../../packages/database" },
-    { "path": "../../packages/shared" }
-  ]
+  "references": [{ "path": "../../packages/database" }, { "path": "../../packages/shared" }]
 }

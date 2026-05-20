@@ -9,8 +9,7 @@ import {
   Req,
   Res,
   UseGuards,
-  BadRequestException,
-  Logger
+  Logger,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { TemplatesService } from './templates.service.js';
@@ -22,8 +21,7 @@ import {
   RenderedLeadPreview,
   AiDraftResult,
   SendDraftResponse,
-  AiTemplateSuggestion,
-  BulkSendResponse
+  BulkSendResponse,
 } from '@email-automation/shared';
 import { UpdateTemplateDto } from './dto/update-template.dto.js';
 import { RenderTemplateDto } from './dto/render-template.dto.js';
@@ -49,7 +47,7 @@ export class TemplatesController {
     @Param('projectId') projectId: string,
     @Param() _params: unknown,
     @Body() _body: unknown,
-    @Req() request: AuthenticatedRequest
+    @Req() request: AuthenticatedRequest,
   ): Promise<TemplateSummary[]> {
     return this.templatesService.listTemplates(projectId, request.auth!.user);
   }
@@ -59,7 +57,7 @@ export class TemplatesController {
   async createTemplate(
     @Param('projectId') projectId: string,
     @Body() body: CreateTemplateDto,
-    @Req() request: AuthenticatedRequest
+    @Req() request: AuthenticatedRequest,
   ): Promise<TemplateSummary> {
     return this.templatesService.createTemplate(projectId, body, request.auth!.user);
   }
@@ -69,7 +67,7 @@ export class TemplatesController {
   async updateTemplate(
     @Param('templateId') templateId: string,
     @Body() body: UpdateTemplateDto,
-    @Req() request: AuthenticatedRequest
+    @Req() request: AuthenticatedRequest,
   ): Promise<TemplateSummary> {
     return this.templatesService.updateTemplate(templateId, body, request.auth!.user);
   }
@@ -78,7 +76,7 @@ export class TemplatesController {
   @UseGuards(SessionGuard)
   async deleteTemplate(
     @Param('templateId') templateId: string,
-    @Req() request: AuthenticatedRequest
+    @Req() request: AuthenticatedRequest,
   ) {
     await this.templatesService.deleteTemplate(templateId, request.auth!.user);
     return { success: true };
@@ -89,7 +87,7 @@ export class TemplatesController {
   async renderTemplate(
     @Param('templateId') templateId: string,
     @Body() body: RenderTemplateDto,
-    @Req() request: AuthenticatedRequest
+    @Req() request: AuthenticatedRequest,
   ): Promise<RenderedLeadPreview[]> {
     return this.templatesService.renderTemplate(templateId, body, request.auth!.user);
   }
@@ -99,7 +97,7 @@ export class TemplatesController {
   async generateTemplate(
     @Param('templateId') templateId: string,
     @Body() body: GenerateTemplateDto,
-    @Req() request: AuthenticatedRequest
+    @Req() request: AuthenticatedRequest,
   ): Promise<AiDraftResult[]> {
     return this.templatesService.generateAiDrafts(templateId, body, request.auth!.user);
   }
@@ -109,7 +107,7 @@ export class TemplatesController {
   async chatWithTemplate(
     @Param('templateId') templateId: string,
     @Body() body: TemplateChatDto,
-    @Req() request: AuthenticatedRequest
+    @Req() request: AuthenticatedRequest,
   ) {
     return this.templatesService.chatWithTemplate(templateId, body, request.auth!.user);
   }
@@ -119,7 +117,7 @@ export class TemplatesController {
   async sendTemplate(
     @Param('templateId') templateId: string,
     @Body() body: SendDraftDto,
-    @Req() request: AuthenticatedRequest
+    @Req() request: AuthenticatedRequest,
   ): Promise<SendDraftResponse> {
     return this.templatesService.sendDraft(templateId, body, request.auth!.user);
   }
@@ -130,17 +128,17 @@ export class TemplatesController {
     @Param('projectId') projectId: string,
     @Body() body: SuggestTemplateDto,
     @Req() request: AuthenticatedRequest,
-    @Res() res: Response
+    @Res() res: Response,
   ): Promise<void> {
     try {
       this.logger.debug(
-        `[suggest] Processing for project: ${projectId}, provider: ${body.provider}, leadSampleSize: ${body.leadSampleSize}`
+        `[suggest] Processing for project: ${projectId}, provider: ${body.provider}, leadSampleSize: ${body.leadSampleSize}`,
       );
 
       const { provider, stream } = await this.templatesService.prepareSuggestionStream(
         projectId,
         body,
-        request.auth!.user
+        request.auth!.user,
       );
 
       if (provider !== 'gemini') {
@@ -157,7 +155,7 @@ export class TemplatesController {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache',
         Connection: 'keep-alive',
-        'Transfer-Encoding': 'chunked'
+        'Transfer-Encoding': 'chunked',
       });
       res.flushHeaders();
 
@@ -168,7 +166,7 @@ export class TemplatesController {
         res.flush?.();
       }
       res.end();
-      
+
       // Log what we actually sent for debugging
       this.logger.debug(`[suggest] Streamed ${accumulated.length} chars for project: ${projectId}`);
       if (accumulated.length === 0) {
@@ -178,7 +176,7 @@ export class TemplatesController {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(
         `[suggest] Failed for project ${projectId}: ${errorMessage}`,
-        error instanceof Error ? error.stack : ''
+        error instanceof Error ? error.stack : '',
       );
       if (!res.headersSent) {
         throw error;
@@ -192,7 +190,7 @@ export class TemplatesController {
   async suggestHtmlTemplates(
     @Param('projectId') projectId: string,
     @Body() body: SuggestHtmlTemplateDto,
-    @Req() request: AuthenticatedRequest
+    @Req() request: AuthenticatedRequest,
   ) {
     return this.templatesService.suggestHtmlTemplates(projectId, body, request.auth!.user);
   }
@@ -202,7 +200,7 @@ export class TemplatesController {
   async sendBulkDrafts(
     @Param('templateId') templateId: string,
     @Body() body: SendBulkDraftsDto,
-    @Req() request: AuthenticatedRequest
+    @Req() request: AuthenticatedRequest,
   ): Promise<BulkSendResponse> {
     return this.templatesService.sendBulkDrafts(templateId, body, request.auth!.user);
   }
@@ -211,7 +209,7 @@ export class TemplatesController {
   @UseGuards(SessionGuard)
   async listTemplateVersions(
     @Param('templateId') templateId: string,
-    @Req() request: AuthenticatedRequest
+    @Req() request: AuthenticatedRequest,
   ) {
     return this.templatesService.listTemplateVersions(templateId, request.auth!.user);
   }
@@ -221,7 +219,7 @@ export class TemplatesController {
   async createTemplateVersion(
     @Param('templateId') templateId: string,
     @Body() body: CreateTemplateVersionDto,
-    @Req() request: AuthenticatedRequest
+    @Req() request: AuthenticatedRequest,
   ) {
     return this.templatesService.createTemplateVersion(templateId, body, request.auth!.user);
   }
@@ -232,9 +230,14 @@ export class TemplatesController {
     @Param('templateId') templateId: string,
     @Param('versionId') versionId: string,
     @Body() body: UpdateTemplateVersionDto,
-    @Req() request: AuthenticatedRequest
+    @Req() request: AuthenticatedRequest,
   ) {
-    return this.templatesService.updateTemplateVersion(templateId, versionId, body, request.auth!.user);
+    return this.templatesService.updateTemplateVersion(
+      templateId,
+      versionId,
+      body,
+      request.auth!.user,
+    );
   }
 
   @Post('templates/:templateId/versions/:versionId/activate')
@@ -242,7 +245,7 @@ export class TemplatesController {
   async activateTemplateVersion(
     @Param('templateId') templateId: string,
     @Param('versionId') versionId: string,
-    @Req() request: AuthenticatedRequest
+    @Req() request: AuthenticatedRequest,
   ) {
     return this.templatesService.activateTemplateVersion(templateId, versionId, request.auth!.user);
   }
@@ -252,7 +255,7 @@ export class TemplatesController {
   async iterateDrafts(
     @Param('templateId') templateId: string,
     @Body() body: IterateDraftsDto,
-    @Req() request: AuthenticatedRequest
+    @Req() request: AuthenticatedRequest,
   ) {
     return this.templatesService.iterateDrafts(templateId, body, request.auth!.user);
   }

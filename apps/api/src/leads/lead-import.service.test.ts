@@ -1,14 +1,12 @@
 import { describe, expect, it, beforeEach, vi, afterEach } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
 import { LeadImportService } from './lead-import.service';
-import { PrismaService } from '../prisma.service';
-import { ProjectAccessService } from '../projects/project-access.service';
 import { AuthenticatedUser } from '../auth/authenticated-request';
 import { LeadStatus } from '@email-automation/database';
 
 // Mock csv-parse/sync
 vi.mock('csv-parse/sync', () => ({
-  parse: vi.fn()
+  parse: vi.fn(),
 }));
 
 // Mock global fetch
@@ -26,19 +24,19 @@ describe('LeadImportService', () => {
     mockPrisma = {
       lead: {
         findMany: vi.fn(),
-        createMany: vi.fn()
-      }
+        createMany: vi.fn(),
+      },
     };
 
     mockProjectAccess = {
-      ensureProjectAccess: vi.fn()
+      ensureProjectAccess: vi.fn(),
     };
 
     service = new LeadImportService(mockPrisma, mockProjectAccess);
 
     mockUser = {
       id: 'user-123',
-      email: 'test@example.com'
+      email: 'test@example.com',
     };
 
     // Reset all mocks
@@ -52,23 +50,23 @@ describe('LeadImportService', () => {
 
   describe('importCsv', () => {
     it('should throw BadRequestException when file is undefined', async () => {
-      await expect(
-        service.importCsv('project-1', undefined, mockUser)
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.importCsv('project-1', undefined, mockUser)).rejects.toThrow(
+        BadRequestException,
+      );
 
-      await expect(
-        service.importCsv('project-1', undefined, mockUser)
-      ).rejects.toThrow('CSV file is required.');
+      await expect(service.importCsv('project-1', undefined, mockUser)).rejects.toThrow(
+        'CSV file is required.',
+      );
     });
 
     it('should throw BadRequestException when file buffer is missing', async () => {
       const mockFile = {
-        buffer: undefined
+        buffer: undefined,
       } as Express.Multer.File;
 
-      await expect(
-        service.importCsv('project-1', mockFile, mockUser)
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.importCsv('project-1', mockFile, mockUser)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should successfully import valid CSV with multiple leads', async () => {
@@ -78,15 +76,15 @@ describe('LeadImportService', () => {
           first_name: 'John',
           last_name: 'Doe',
           company: 'Acme Corp',
-          role: 'CEO'
+          role: 'CEO',
         },
         {
           email: 'jane@example.com',
           first_name: 'Jane',
           last_name: 'Smith',
           company: 'Tech Inc',
-          role: 'CTO'
-        }
+          role: 'CTO',
+        },
       ];
 
       vi.mocked(parse).mockReturnValue(csvData);
@@ -94,7 +92,7 @@ describe('LeadImportService', () => {
       mockPrisma.lead.createMany.mockResolvedValue({ count: 2 });
 
       const mockFile = {
-        buffer: Buffer.from('csv content')
+        buffer: Buffer.from('csv content'),
       } as Express.Multer.File;
 
       const result = await service.importCsv('project-1', mockFile, mockUser);
@@ -105,8 +103,8 @@ describe('LeadImportService', () => {
         invalid: 0,
         rows: [
           { email: 'john@example.com', status: 'imported' },
-          { email: 'jane@example.com', status: 'imported' }
-        ]
+          { email: 'jane@example.com', status: 'imported' },
+        ],
       });
 
       expect(mockProjectAccess.ensureProjectAccess).toHaveBeenCalledWith('project-1', mockUser);
@@ -123,7 +121,7 @@ describe('LeadImportService', () => {
             phone: null,
             address: null,
             customJson: undefined,
-            status: LeadStatus.IMPORTED
+            status: LeadStatus.IMPORTED,
           },
           {
             projectId: 'project-1',
@@ -136,9 +134,9 @@ describe('LeadImportService', () => {
             phone: null,
             address: null,
             customJson: undefined,
-            status: LeadStatus.IMPORTED
-          }
-        ]
+            status: LeadStatus.IMPORTED,
+          },
+        ],
       });
     });
 
@@ -148,8 +146,8 @@ describe('LeadImportService', () => {
           email: 'john@example.com',
           first_name: 'John',
           'Custom Field 1': 'Value 1',
-          'LinkedIn URL': 'https://linkedin.com/in/john'
-        }
+          'LinkedIn URL': 'https://linkedin.com/in/john',
+        },
       ];
 
       vi.mocked(parse).mockReturnValue(csvData);
@@ -157,7 +155,7 @@ describe('LeadImportService', () => {
       mockPrisma.lead.createMany.mockResolvedValue({ count: 1 });
 
       const mockFile = {
-        buffer: Buffer.from('csv content')
+        buffer: Buffer.from('csv content'),
       } as Express.Multer.File;
 
       const result = await service.importCsv('project-1', mockFile, mockUser);
@@ -170,10 +168,10 @@ describe('LeadImportService', () => {
             firstName: 'John',
             customJson: {
               custom_field_1: 'Value 1',
-              linkedin_url: 'https://linkedin.com/in/john'
-            }
-          })
-        ]
+              linkedin_url: 'https://linkedin.com/in/john',
+            },
+          }),
+        ],
       });
     });
 
@@ -182,7 +180,7 @@ describe('LeadImportService', () => {
         { email: 'valid@example.com', first_name: 'Valid' },
         { email: 'invalid-email', first_name: 'Invalid' },
         { email: 'missing@', first_name: 'Missing' },
-        { email: '@nodomain.com', first_name: 'NoDomain' }
+        { email: '@nodomain.com', first_name: 'NoDomain' },
       ];
 
       vi.mocked(parse).mockReturnValue(csvData);
@@ -190,7 +188,7 @@ describe('LeadImportService', () => {
       mockPrisma.lead.createMany.mockResolvedValue({ count: 1 });
 
       const mockFile = {
-        buffer: Buffer.from('csv content')
+        buffer: Buffer.from('csv content'),
       } as Express.Multer.File;
 
       const result = await service.importCsv('project-1', mockFile, mockUser);
@@ -203,21 +201,21 @@ describe('LeadImportService', () => {
           { email: 'valid@example.com', status: 'imported' },
           { email: 'invalid-email', status: 'invalid', reason: 'Missing or invalid email' },
           { email: 'missing@', status: 'invalid', reason: 'Missing or invalid email' },
-          { email: '@nodomain.com', status: 'invalid', reason: 'Missing or invalid email' }
-        ]
+          { email: '@nodomain.com', status: 'invalid', reason: 'Missing or invalid email' },
+        ],
       });
     });
 
     it('should skip leads with missing email', async () => {
       const csvData = [
         { first_name: 'No', last_name: 'Email' },
-        { email: '', first_name: 'Empty' }
+        { email: '', first_name: 'Empty' },
       ];
 
       vi.mocked(parse).mockReturnValue(csvData);
 
       const mockFile = {
-        buffer: Buffer.from('csv content')
+        buffer: Buffer.from('csv content'),
       } as Express.Multer.File;
 
       const result = await service.importCsv('project-1', mockFile, mockUser);
@@ -230,7 +228,7 @@ describe('LeadImportService', () => {
       const csvData = [
         { email: 'john@example.com', first_name: 'John' },
         { email: 'jane@example.com', first_name: 'Jane' },
-        { email: 'john@example.com', first_name: 'John Duplicate' }
+        { email: 'john@example.com', first_name: 'John Duplicate' },
       ];
 
       vi.mocked(parse).mockReturnValue(csvData);
@@ -238,7 +236,7 @@ describe('LeadImportService', () => {
       mockPrisma.lead.createMany.mockResolvedValue({ count: 2 });
 
       const mockFile = {
-        buffer: Buffer.from('csv content')
+        buffer: Buffer.from('csv content'),
       } as Express.Multer.File;
 
       const result = await service.importCsv('project-1', mockFile, mockUser);
@@ -250,8 +248,8 @@ describe('LeadImportService', () => {
         rows: [
           { email: 'john@example.com', status: 'imported' },
           { email: 'jane@example.com', status: 'imported' },
-          { email: 'john@example.com', status: 'skipped', reason: 'Duplicate email in file' }
-        ]
+          { email: 'john@example.com', status: 'skipped', reason: 'Duplicate email in file' },
+        ],
       });
     });
 
@@ -259,18 +257,18 @@ describe('LeadImportService', () => {
       const csvData = [
         { email: 'john@example.com', first_name: 'John' },
         { email: 'jane@example.com', first_name: 'Jane' },
-        { email: 'new@example.com', first_name: 'New' }
+        { email: 'new@example.com', first_name: 'New' },
       ];
 
       vi.mocked(parse).mockReturnValue(csvData);
       mockPrisma.lead.findMany.mockResolvedValue([
         { email: 'john@example.com' },
-        { email: 'jane@example.com' }
+        { email: 'jane@example.com' },
       ]);
       mockPrisma.lead.createMany.mockResolvedValue({ count: 1 });
 
       const mockFile = {
-        buffer: Buffer.from('csv content')
+        buffer: Buffer.from('csv content'),
       } as Express.Multer.File;
 
       const result = await service.importCsv('project-1', mockFile, mockUser);
@@ -280,18 +278,26 @@ describe('LeadImportService', () => {
         skipped: 2,
         invalid: 0,
         rows: [
-          { email: 'john@example.com', status: 'skipped', reason: 'Email already exists in project' },
-          { email: 'jane@example.com', status: 'skipped', reason: 'Email already exists in project' },
-          { email: 'new@example.com', status: 'imported' }
-        ]
+          {
+            email: 'john@example.com',
+            status: 'skipped',
+            reason: 'Email already exists in project',
+          },
+          {
+            email: 'jane@example.com',
+            status: 'skipped',
+            reason: 'Email already exists in project',
+          },
+          { email: 'new@example.com', status: 'imported' },
+        ],
       });
 
       expect(mockPrisma.lead.createMany).toHaveBeenCalledWith({
         data: [
           expect.objectContaining({
-            email: 'new@example.com'
-          })
-        ]
+            email: 'new@example.com',
+          }),
+        ],
       });
     });
 
@@ -301,32 +307,32 @@ describe('LeadImportService', () => {
       });
 
       const mockFile = {
-        buffer: Buffer.from('invalid csv')
+        buffer: Buffer.from('invalid csv'),
       } as Express.Multer.File;
 
-      await expect(
-        service.importCsv('project-1', mockFile, mockUser)
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.importCsv('project-1', mockFile, mockUser)).rejects.toThrow(
+        BadRequestException,
+      );
 
-      await expect(
-        service.importCsv('project-1', mockFile, mockUser)
-      ).rejects.toThrow('Unable to parse CSV data: Invalid CSV format');
+      await expect(service.importCsv('project-1', mockFile, mockUser)).rejects.toThrow(
+        'Unable to parse CSV data: Invalid CSV format',
+      );
     });
 
     it('should throw BadRequestException for empty CSV', async () => {
       vi.mocked(parse).mockReturnValue([]);
 
       const mockFile = {
-        buffer: Buffer.from('email\n')
+        buffer: Buffer.from('email\n'),
       } as Express.Multer.File;
 
-      await expect(
-        service.importCsv('project-1', mockFile, mockUser)
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.importCsv('project-1', mockFile, mockUser)).rejects.toThrow(
+        BadRequestException,
+      );
 
-      await expect(
-        service.importCsv('project-1', mockFile, mockUser)
-      ).rejects.toThrow('The provided data does not contain any rows.');
+      await expect(service.importCsv('project-1', mockFile, mockUser)).rejects.toThrow(
+        'The provided data does not contain any rows.',
+      );
     });
 
     it('should handle CSV with alternative column names', async () => {
@@ -334,13 +340,13 @@ describe('LeadImportService', () => {
         {
           'E-mail': 'john@example.com',
           'Given Name': 'John',
-          'Surname': 'Doe',
+          Surname: 'Doe',
           'Business Name': 'Acme',
           'Job Title': 'Manager',
           'Time Zone': 'America/New_York',
           'Phone Number': '123-456-7890',
-          'Address Line': '123 Main St'
-        }
+          'Address Line': '123 Main St',
+        },
       ];
 
       vi.mocked(parse).mockReturnValue(csvData);
@@ -348,7 +354,7 @@ describe('LeadImportService', () => {
       mockPrisma.lead.createMany.mockResolvedValue({ count: 1 });
 
       const mockFile = {
-        buffer: Buffer.from('csv content')
+        buffer: Buffer.from('csv content'),
       } as Express.Multer.File;
 
       const result = await service.importCsv('project-1', mockFile, mockUser);
@@ -364,9 +370,9 @@ describe('LeadImportService', () => {
             role: 'Manager',
             timezone: 'America/New_York',
             phone: '123-456-7890',
-            address: '123 Main St'
-          })
-        ]
+            address: '123 Main St',
+          }),
+        ],
       });
     });
 
@@ -375,7 +381,7 @@ describe('LeadImportService', () => {
         email: `user${i}@example.com`,
         first_name: `User${i}`,
         last_name: 'Test',
-        company: 'Test Corp'
+        company: 'Test Corp',
       }));
 
       vi.mocked(parse).mockReturnValue(csvData);
@@ -383,7 +389,7 @@ describe('LeadImportService', () => {
       mockPrisma.lead.createMany.mockResolvedValue({ count: 1000 });
 
       const mockFile = {
-        buffer: Buffer.from('csv content')
+        buffer: Buffer.from('csv content'),
       } as Express.Multer.File;
 
       const result = await service.importCsv('project-1', mockFile, mockUser);
@@ -395,16 +401,16 @@ describe('LeadImportService', () => {
       expect(mockPrisma.lead.createMany).toHaveBeenCalledWith({
         data: expect.arrayContaining([
           expect.objectContaining({
-            email: 'user0@example.com'
-          })
-        ])
+            email: 'user0@example.com',
+          }),
+        ]),
       });
     });
 
     it('should normalize email addresses to lowercase', async () => {
       const csvData = [
         { email: 'JOHN@EXAMPLE.COM', first_name: 'John' },
-        { email: 'Jane@Example.Com', first_name: 'Jane' }
+        { email: 'Jane@Example.Com', first_name: 'Jane' },
       ];
 
       vi.mocked(parse).mockReturnValue(csvData);
@@ -412,7 +418,7 @@ describe('LeadImportService', () => {
       mockPrisma.lead.createMany.mockResolvedValue({ count: 2 });
 
       const mockFile = {
-        buffer: Buffer.from('csv content')
+        buffer: Buffer.from('csv content'),
       } as Express.Multer.File;
 
       await service.importCsv('project-1', mockFile, mockUser);
@@ -420,8 +426,8 @@ describe('LeadImportService', () => {
       expect(mockPrisma.lead.createMany).toHaveBeenCalledWith({
         data: [
           expect.objectContaining({ email: 'john@example.com' }),
-          expect.objectContaining({ email: 'jane@example.com' })
-        ]
+          expect.objectContaining({ email: 'jane@example.com' }),
+        ],
       });
     });
 
@@ -432,8 +438,8 @@ describe('LeadImportService', () => {
           first_name: '',
           last_name: '   ',
           company: null,
-          role: 'Developer'
-        }
+          role: 'Developer',
+        },
       ];
 
       vi.mocked(parse).mockReturnValue(csvData);
@@ -441,7 +447,7 @@ describe('LeadImportService', () => {
       mockPrisma.lead.createMany.mockResolvedValue({ count: 1 });
 
       const mockFile = {
-        buffer: Buffer.from('csv content')
+        buffer: Buffer.from('csv content'),
       } as Express.Multer.File;
 
       const result = await service.importCsv('project-1', mockFile, mockUser);
@@ -454,24 +460,24 @@ describe('LeadImportService', () => {
             firstName: null,
             lastName: null,
             company: null,
-            role: 'Developer'
-          })
-        ]
+            role: 'Developer',
+          }),
+        ],
       });
     });
 
     it('should ensure project access before importing', async () => {
       mockProjectAccess.ensureProjectAccess.mockRejectedValue(
-        new BadRequestException('Access denied')
+        new BadRequestException('Access denied'),
       );
 
       const mockFile = {
-        buffer: Buffer.from('csv content')
+        buffer: Buffer.from('csv content'),
       } as Express.Multer.File;
 
-      await expect(
-        service.importCsv('project-1', mockFile, mockUser)
-      ).rejects.toThrow('Access denied');
+      await expect(service.importCsv('project-1', mockFile, mockUser)).rejects.toThrow(
+        'Access denied',
+      );
 
       expect(mockProjectAccess.ensureProjectAccess).toHaveBeenCalledWith('project-1', mockUser);
     });
@@ -479,13 +485,13 @@ describe('LeadImportService', () => {
     it('should return correct summary when all leads are invalid', async () => {
       const csvData = [
         { email: 'invalid1', first_name: 'Test1' },
-        { email: 'invalid2', first_name: 'Test2' }
+        { email: 'invalid2', first_name: 'Test2' },
       ];
 
       vi.mocked(parse).mockReturnValue(csvData);
 
       const mockFile = {
-        buffer: Buffer.from('csv content')
+        buffer: Buffer.from('csv content'),
       } as Express.Multer.File;
 
       const result = await service.importCsv('project-1', mockFile, mockUser);
@@ -497,7 +503,7 @@ describe('LeadImportService', () => {
       expect(result.invalid).toBe(2);
       expect(result.rows).toEqual([
         { email: 'invalid1', status: 'invalid', reason: 'Missing or invalid email' },
-        { email: 'invalid2', status: 'invalid', reason: 'Missing or invalid email' }
+        { email: 'invalid2', status: 'invalid', reason: 'Missing or invalid email' },
       ]);
 
       expect(mockPrisma.lead.createMany).not.toHaveBeenCalled();
@@ -515,12 +521,12 @@ describe('LeadImportService', () => {
       const csvContent = 'email,first_name,last_name\njohn@example.com,John,Doe';
       const mockResponse = {
         ok: true,
-        arrayBuffer: vi.fn().mockResolvedValue(Buffer.from(csvContent).buffer)
+        arrayBuffer: vi.fn().mockResolvedValue(Buffer.from(csvContent).buffer),
       };
 
       vi.mocked(global.fetch).mockResolvedValue(mockResponse as any);
       vi.mocked(parse).mockReturnValue([
-        { email: 'john@example.com', first_name: 'John', last_name: 'Doe' }
+        { email: 'john@example.com', first_name: 'John', last_name: 'Doe' },
       ]);
       mockPrisma.lead.findMany.mockResolvedValue([]);
       mockPrisma.lead.createMany.mockResolvedValue({ count: 1 });
@@ -529,7 +535,7 @@ describe('LeadImportService', () => {
 
       expect(result.inserted).toBe(1);
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('https://docs.google.com/spreadsheets/d/abc123/export?format=csv')
+        expect.stringContaining('https://docs.google.com/spreadsheets/d/abc123/export?format=csv'),
       );
       expect(mockProjectAccess.ensureProjectAccess).toHaveBeenCalledWith('project-1', mockUser);
     });
@@ -539,7 +545,7 @@ describe('LeadImportService', () => {
       const csvContent = 'email\ntest@example.com';
       const mockResponse = {
         ok: true,
-        arrayBuffer: vi.fn().mockResolvedValue(Buffer.from(csvContent).buffer)
+        arrayBuffer: vi.fn().mockResolvedValue(Buffer.from(csvContent).buffer),
       };
 
       vi.mocked(global.fetch).mockResolvedValue(mockResponse as any);
@@ -549,9 +555,7 @@ describe('LeadImportService', () => {
 
       await service.importGoogleSheet('project-1', sheetUrl, mockUser);
 
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('gid=456')
-      );
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('gid=456'));
     });
 
     it('should handle Google Sheets export URL directly', async () => {
@@ -559,7 +563,7 @@ describe('LeadImportService', () => {
       const csvContent = 'email\ntest@example.com';
       const mockResponse = {
         ok: true,
-        arrayBuffer: vi.fn().mockResolvedValue(Buffer.from(csvContent).buffer)
+        arrayBuffer: vi.fn().mockResolvedValue(Buffer.from(csvContent).buffer),
       };
 
       vi.mocked(global.fetch).mockResolvedValue(mockResponse as any);
@@ -575,66 +579,66 @@ describe('LeadImportService', () => {
     it('should throw BadRequestException for invalid Google Sheets URL format', async () => {
       const invalidUrl = 'not-a-url';
 
-      await expect(
-        service.importGoogleSheet('project-1', invalidUrl, mockUser)
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.importGoogleSheet('project-1', invalidUrl, mockUser)).rejects.toThrow(
+        BadRequestException,
+      );
 
-      await expect(
-        service.importGoogleSheet('project-1', invalidUrl, mockUser)
-      ).rejects.toThrow('Invalid Google Sheet URL.');
+      await expect(service.importGoogleSheet('project-1', invalidUrl, mockUser)).rejects.toThrow(
+        'Invalid Google Sheet URL.',
+      );
     });
 
     it('should throw BadRequestException for non-Google Sheets domain', async () => {
       const invalidUrl = 'https://example.com/spreadsheet';
 
-      await expect(
-        service.importGoogleSheet('project-1', invalidUrl, mockUser)
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.importGoogleSheet('project-1', invalidUrl, mockUser)).rejects.toThrow(
+        BadRequestException,
+      );
 
-      await expect(
-        service.importGoogleSheet('project-1', invalidUrl, mockUser)
-      ).rejects.toThrow('Google Sheets URL must come from docs.google.com.');
+      await expect(service.importGoogleSheet('project-1', invalidUrl, mockUser)).rejects.toThrow(
+        'Google Sheets URL must come from docs.google.com.',
+      );
     });
 
     it('should throw BadRequestException when unable to determine sheet ID', async () => {
       const invalidUrl = 'https://docs.google.com/spreadsheets/invalid-path';
 
-      await expect(
-        service.importGoogleSheet('project-1', invalidUrl, mockUser)
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.importGoogleSheet('project-1', invalidUrl, mockUser)).rejects.toThrow(
+        BadRequestException,
+      );
 
-      await expect(
-        service.importGoogleSheet('project-1', invalidUrl, mockUser)
-      ).rejects.toThrow('Unable to determine Google Sheet ID from the provided URL.');
+      await expect(service.importGoogleSheet('project-1', invalidUrl, mockUser)).rejects.toThrow(
+        'Unable to determine Google Sheet ID from the provided URL.',
+      );
     });
 
     it('should throw BadRequestException when Google Sheets is not accessible', async () => {
       const mockResponse = {
         ok: false,
-        status: 403
+        status: 403,
       };
 
       vi.mocked(global.fetch).mockResolvedValue(mockResponse as any);
 
-      await expect(
-        service.importGoogleSheet('project-1', validSheetUrl, mockUser)
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.importGoogleSheet('project-1', validSheetUrl, mockUser)).rejects.toThrow(
+        BadRequestException,
+      );
 
-      await expect(
-        service.importGoogleSheet('project-1', validSheetUrl, mockUser)
-      ).rejects.toThrow('Unable to access Google Sheet. Ensure the link is shared publicly.');
+      await expect(service.importGoogleSheet('project-1', validSheetUrl, mockUser)).rejects.toThrow(
+        'Unable to access Google Sheet. Ensure the link is shared publicly.',
+      );
     });
 
     it('should throw BadRequestException when fetch fails', async () => {
       vi.mocked(global.fetch).mockRejectedValue(new Error('Network error'));
 
-      await expect(
-        service.importGoogleSheet('project-1', validSheetUrl, mockUser)
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.importGoogleSheet('project-1', validSheetUrl, mockUser)).rejects.toThrow(
+        BadRequestException,
+      );
 
-      await expect(
-        service.importGoogleSheet('project-1', validSheetUrl, mockUser)
-      ).rejects.toThrow('Failed to download Google Sheet.');
+      await expect(service.importGoogleSheet('project-1', validSheetUrl, mockUser)).rejects.toThrow(
+        'Failed to download Google Sheet.',
+      );
     });
 
     it('should handle Google Sheets URL with hash gid', async () => {
@@ -642,7 +646,7 @@ describe('LeadImportService', () => {
       const csvContent = 'email\ntest@example.com';
       const mockResponse = {
         ok: true,
-        arrayBuffer: vi.fn().mockResolvedValue(Buffer.from(csvContent).buffer)
+        arrayBuffer: vi.fn().mockResolvedValue(Buffer.from(csvContent).buffer),
       };
 
       vi.mocked(global.fetch).mockResolvedValue(mockResponse as any);
@@ -652,19 +656,17 @@ describe('LeadImportService', () => {
 
       await service.importGoogleSheet('project-1', sheetUrl, mockUser);
 
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('gid=789')
-      );
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('gid=789'));
     });
 
     it('should ensure project access before importing from Google Sheets', async () => {
       mockProjectAccess.ensureProjectAccess.mockRejectedValue(
-        new BadRequestException('Access denied')
+        new BadRequestException('Access denied'),
       );
 
-      await expect(
-        service.importGoogleSheet('project-1', validSheetUrl, mockUser)
-      ).rejects.toThrow('Access denied');
+      await expect(service.importGoogleSheet('project-1', validSheetUrl, mockUser)).rejects.toThrow(
+        'Access denied',
+      );
 
       expect(mockProjectAccess.ensureProjectAccess).toHaveBeenCalledWith('project-1', mockUser);
       expect(global.fetch).not.toHaveBeenCalled();
@@ -673,50 +675,46 @@ describe('LeadImportService', () => {
 
   describe('Edge Cases and Error Handling', () => {
     it('should handle database errors during lead lookup', async () => {
-      const csvData = [
-        { email: 'john@example.com', first_name: 'John' }
-      ];
+      const csvData = [{ email: 'john@example.com', first_name: 'John' }];
 
       vi.mocked(parse).mockReturnValue(csvData);
       mockPrisma.lead.findMany.mockRejectedValue(new Error('Database connection error'));
 
       const mockFile = {
-        buffer: Buffer.from('csv content')
+        buffer: Buffer.from('csv content'),
       } as Express.Multer.File;
 
-      await expect(
-        service.importCsv('project-1', mockFile, mockUser)
-      ).rejects.toThrow('Database connection error');
+      await expect(service.importCsv('project-1', mockFile, mockUser)).rejects.toThrow(
+        'Database connection error',
+      );
     });
 
     it('should handle database errors during lead creation', async () => {
-      const csvData = [
-        { email: 'john@example.com', first_name: 'John' }
-      ];
+      const csvData = [{ email: 'john@example.com', first_name: 'John' }];
 
       vi.mocked(parse).mockReturnValue(csvData);
       mockPrisma.lead.findMany.mockResolvedValue([]);
       mockPrisma.lead.createMany.mockRejectedValue(new Error('Insert failed'));
 
       const mockFile = {
-        buffer: Buffer.from('csv content')
+        buffer: Buffer.from('csv content'),
       } as Express.Multer.File;
 
-      await expect(
-        service.importCsv('project-1', mockFile, mockUser)
-      ).rejects.toThrow('Insert failed');
+      await expect(service.importCsv('project-1', mockFile, mockUser)).rejects.toThrow(
+        'Insert failed',
+      );
     });
 
     it('should handle CSV with only whitespace in required fields', async () => {
       const csvData = [
         { email: '   ', first_name: 'Test' },
-        { email: '\t\t', first_name: 'Test2' }
+        { email: '\t\t', first_name: 'Test2' },
       ];
 
       vi.mocked(parse).mockReturnValue(csvData);
 
       const mockFile = {
-        buffer: Buffer.from('csv content')
+        buffer: Buffer.from('csv content'),
       } as Express.Multer.File;
 
       const result = await service.importCsv('project-1', mockFile, mockUser);
@@ -728,11 +726,11 @@ describe('LeadImportService', () => {
     it('should handle special characters in column names', async () => {
       const csvData = [
         {
-          'email_address': 'test@example.com',
-          'first_name_given': 'John',
-          'last_name_surname': 'Doe',
-          'company_business': 'Acme Corp'
-        }
+          email_address: 'test@example.com',
+          first_name_given: 'John',
+          last_name_surname: 'Doe',
+          company_business: 'Acme Corp',
+        },
       ];
 
       vi.mocked(parse).mockReturnValue(csvData);
@@ -740,7 +738,7 @@ describe('LeadImportService', () => {
       mockPrisma.lead.createMany.mockResolvedValue({ count: 1 });
 
       const mockFile = {
-        buffer: Buffer.from('csv content')
+        buffer: Buffer.from('csv content'),
       } as Express.Multer.File;
 
       const result = await service.importCsv('project-1', mockFile, mockUser);
@@ -749,9 +747,9 @@ describe('LeadImportService', () => {
       expect(mockPrisma.lead.createMany).toHaveBeenCalledWith({
         data: [
           expect.objectContaining({
-            email: 'test@example.com'
-          })
-        ]
+            email: 'test@example.com',
+          }),
+        ],
       });
     });
 
@@ -761,7 +759,7 @@ describe('LeadImportService', () => {
         { email: 'invalid', first_name: 'Invalid' },
         { email: 'valid2@example.com', first_name: 'Valid2' },
         { email: '', first_name: 'Empty' },
-        { email: 'valid3@example.com', first_name: 'Valid3' }
+        { email: 'valid3@example.com', first_name: 'Valid3' },
       ];
 
       vi.mocked(parse).mockReturnValue(csvData);
@@ -769,7 +767,7 @@ describe('LeadImportService', () => {
       mockPrisma.lead.createMany.mockResolvedValue({ count: 3 });
 
       const mockFile = {
-        buffer: Buffer.from('csv content')
+        buffer: Buffer.from('csv content'),
       } as Express.Multer.File;
 
       const result = await service.importCsv('project-1', mockFile, mockUser);
@@ -783,8 +781,8 @@ describe('LeadImportService', () => {
           { email: 'invalid', status: 'invalid', reason: 'Missing or invalid email' },
           { email: 'valid2@example.com', status: 'imported' },
           { email: null, status: 'invalid', reason: 'Missing or invalid email' },
-          { email: 'valid3@example.com', status: 'imported' }
-        ]
+          { email: 'valid3@example.com', status: 'imported' },
+        ],
       });
     });
 
@@ -793,8 +791,8 @@ describe('LeadImportService', () => {
         {
           email: 'john@example.com',
           first_name: 'John',
-          last_name: 'Doe'
-        }
+          last_name: 'Doe',
+        },
       ];
 
       vi.mocked(parse).mockReturnValue(csvData);
@@ -802,7 +800,7 @@ describe('LeadImportService', () => {
       mockPrisma.lead.createMany.mockResolvedValue({ count: 1 });
 
       const mockFile = {
-        buffer: Buffer.from('csv content')
+        buffer: Buffer.from('csv content'),
       } as Express.Multer.File;
 
       await service.importCsv('project-1', mockFile, mockUser);
@@ -813,9 +811,9 @@ describe('LeadImportService', () => {
             email: 'john@example.com',
             firstName: 'John',
             lastName: 'Doe',
-            customJson: undefined
-          })
-        ]
+            customJson: undefined,
+          }),
+        ],
       });
     });
 
@@ -825,8 +823,8 @@ describe('LeadImportService', () => {
           email: 'john@example.com',
           'Custom 1': 'Value 1',
           'Custom 2': '',
-          'Custom 3': 'Value 3'
-        }
+          'Custom 3': 'Value 3',
+        },
       ];
 
       vi.mocked(parse).mockReturnValue(csvData);
@@ -834,7 +832,7 @@ describe('LeadImportService', () => {
       mockPrisma.lead.createMany.mockResolvedValue({ count: 1 });
 
       const mockFile = {
-        buffer: Buffer.from('csv content')
+        buffer: Buffer.from('csv content'),
       } as Express.Multer.File;
 
       await service.importCsv('project-1', mockFile, mockUser);
@@ -845,10 +843,10 @@ describe('LeadImportService', () => {
             customJson: {
               custom_1: 'Value 1',
               custom_2: null,
-              custom_3: 'Value 3'
-            }
-          })
-        ]
+              custom_3: 'Value 3',
+            },
+          }),
+        ],
       });
     });
   });
@@ -866,7 +864,7 @@ describe('LeadImportService', () => {
       mockPrisma.lead.createMany.mockResolvedValue({ count: 3858 });
 
       const mockFile = {
-        buffer: Buffer.from('csv content')
+        buffer: Buffer.from('csv content'),
       } as Express.Multer.File;
 
       const result = await service.importCsv('project-1', mockFile, mockUser);

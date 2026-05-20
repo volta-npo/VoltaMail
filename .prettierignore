@@ -1,0 +1,17 @@
+node_modules
+dist
+.next
+coverage
+.claude-flow
+.hive-mind
+api/dist
+.vscode
+CHANGES-AT-A-GLANCE.md
+DEBUG-400-ERROR.md
+DEPLOYMENT-COMPLETE.md
+DEPLOYMENT-SUMMARY.md
+docs
+plan.md
+tests/timeout-test-summary.md
+TIMEOUT-FIX-QUICK-START.md
+TIMEOUT-FIX-SUMMARY.md

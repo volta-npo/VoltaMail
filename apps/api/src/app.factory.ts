@@ -5,6 +5,10 @@ import compression from 'compression';
 import { AppModule } from './app.module.js';
 import type { NextFunction, Request, Response } from 'express';
 
+interface CorrelatedRequest extends Request {
+  correlationId?: string | string[];
+}
+
 export async function createApp() {
   const app = await NestFactory.create(AppModule);
 
@@ -14,8 +18,10 @@ export async function createApp() {
   app.use(cookieParser());
 
   // Add request correlation ID middleware
-  app.use((req: any, res: Response, next: NextFunction) => {
-    const correlationId = req.headers['x-correlation-id'] || `req_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  app.use((req: CorrelatedRequest, res: Response, next: NextFunction) => {
+    const correlationId =
+      req.headers['x-correlation-id'] ||
+      `req_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     req.correlationId = correlationId;
     res.setHeader('X-Correlation-ID', correlationId);
     next();
@@ -51,7 +57,7 @@ export async function createApp() {
     'http://localhost:3000',
     'http://localhost:3001',
     'http://127.0.0.1:3000',
-    'http://127.0.0.1:3001'
+    'http://127.0.0.1:3001',
   ];
 
   const normalizeOrigin = (value: string): string | null => {
@@ -104,10 +110,10 @@ export async function createApp() {
     process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
     process.env.VERCEL_PROJECT_PRODUCTION_URL
       ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-      : null
+      : null,
   ]);
 
-  let allowAllOrigins = baseOrigins.has('*') || extraOrigins.has('*');
+  const allowAllOrigins = baseOrigins.has('*') || extraOrigins.has('*');
   const allowedOrigins = allowAllOrigins
     ? new Set<string>(['*'])
     : new Set<string>([...baseOrigins, ...extraOrigins]);
@@ -124,14 +130,13 @@ export async function createApp() {
     }
   })();
 
-  const escapeRegExp = (value: string) =>
-    value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   const vercelPattern =
     appBaseHost && appBaseHost.endsWith('.vercel.app')
       ? new RegExp(
           `^https://${escapeRegExp(appBaseHost.replace(/\.vercel\.app$/i, ''))}(?:-[\\w-]+)?\\.vercel\\.app$`,
-          'i'
+          'i',
         )
       : null;
 
@@ -170,15 +175,15 @@ export async function createApp() {
           callback(new Error(`Origin ${origin} not allowed by CORS`));
         },
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID', 'x-session-token']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID', 'x-session-token'],
   });
 
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       transform: true,
-      forbidNonWhitelisted: true
-    })
+      forbidNonWhitelisted: true,
+    }),
   );
 
   return app;

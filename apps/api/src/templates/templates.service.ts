@@ -26,7 +26,7 @@ import {
   TemplateVersionSource,
   KnowledgeSource,
   AiChatMessage,
-  AiChatResponse
+  AiChatResponse,
 } from '@email-automation/shared';
 import { renderTemplate } from './template-renderer.js';
 import { AiClientService } from '../ai/ai-client.service.js';
@@ -43,23 +43,27 @@ export class TemplatesService {
     private readonly projectAccess: ProjectAccessService,
     private readonly aiClient: AiClientService,
     private readonly gmailService: GmailService,
-    private readonly aiConfig: AiConfigService
+    private readonly aiConfig: AiConfigService,
   ) {}
 
   private calculateTimeout(leadsCount: number, provider?: string): number {
     const baseTimeout = 8000; // 8 seconds
     const isFreeModel = provider === 'openrouter' || !provider;
     const isGemini = provider === 'gemini';
-    
+
     // Gemini needs more time due to thinking tokens
-    const timeoutPerLead = isGemini ? 4500 : (isFreeModel ? 3500 : 2500);
+    const timeoutPerLead = isGemini ? 4500 : isFreeModel ? 3500 : 2500;
     const maxTimeout = 27000; // 27 seconds max (Heroku hard limit is 30s)
 
-    const calculated = baseTimeout + (leadsCount * timeoutPerLead);
+    const calculated = baseTimeout + leadsCount * timeoutPerLead;
     return Math.min(calculated, maxTimeout);
   }
 
-  private async runWithTimeout<T>(promise: Promise<T>, message: string, timeoutMs: number): Promise<T> {
+  private async runWithTimeout<T>(
+    promise: Promise<T>,
+    message: string,
+    timeoutMs: number,
+  ): Promise<T> {
     let timeoutId: NodeJS.Timeout | undefined;
     try {
       const timeoutPromise = new Promise<never>((_, reject) => {
@@ -90,9 +94,10 @@ export class TemplatesService {
       defaultConcurrency = 6; // Paid models can handle more
     }
 
-    const maxConcurrency = Number.isFinite(configuredConcurrency) && configuredConcurrency > 0
-      ? configuredConcurrency
-      : defaultConcurrency;
+    const maxConcurrency =
+      Number.isFinite(configuredConcurrency) && configuredConcurrency > 0
+        ? configuredConcurrency
+        : defaultConcurrency;
 
     return leadsCount ? Math.min(Math.max(1, maxConcurrency), leadsCount) : maxConcurrency;
   }
@@ -106,9 +111,9 @@ export class TemplatesService {
       include: {
         activeVersion: true,
         versions: {
-          orderBy: { createdAt: 'desc' }
-        }
-      }
+          orderBy: { createdAt: 'desc' },
+        },
+      },
     });
 
     return templates.map(toTemplateSummary);
@@ -117,7 +122,7 @@ export class TemplatesService {
   async createTemplate(
     projectId: string,
     dto: CreateTemplateDto,
-    user: AuthenticatedUser
+    user: AuthenticatedUser,
   ): Promise<TemplateSummary> {
     await this.projectAccess.ensureProjectAccess(projectId, user);
 
@@ -126,8 +131,8 @@ export class TemplatesService {
         projectId,
         name: dto.name,
         subject: dto.subject,
-        body: dto.body
-      }
+        body: dto.body,
+      },
     });
 
     const version = await this.prisma.templateVersion.create({
@@ -138,21 +143,21 @@ export class TemplatesService {
         title: dto.name,
         textContent: dto.body,
         htmlContent: null,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
     const updatedTemplate = await this.prisma.template.update({
       where: { id: template.id },
       data: {
-        activeVersionId: version.id
+        activeVersionId: version.id,
       },
       include: {
         activeVersion: true,
         versions: {
-          orderBy: { createdAt: 'desc' }
-        }
-      }
+          orderBy: { createdAt: 'desc' },
+        },
+      },
     });
 
     return toTemplateSummary(updatedTemplate);
@@ -161,7 +166,7 @@ export class TemplatesService {
   async updateTemplate(
     templateId: string,
     dto: UpdateTemplateDto,
-    user: AuthenticatedUser
+    user: AuthenticatedUser,
   ): Promise<TemplateSummary> {
     const template = await this.prisma.template.findUnique({ where: { id: templateId } });
 
@@ -176,14 +181,14 @@ export class TemplatesService {
       data: {
         name: dto.name ?? template.name,
         subject: dto.subject ?? template.subject,
-        body: dto.body ?? template.body
+        body: dto.body ?? template.body,
       },
       include: {
         activeVersion: true,
         versions: {
-          orderBy: { createdAt: 'desc' }
-        }
-      }
+          orderBy: { createdAt: 'desc' },
+        },
+      },
     });
 
     if ((dto.subject || dto.body) && updated.activeVersionId) {
@@ -191,8 +196,8 @@ export class TemplatesService {
         where: { id: updated.activeVersionId },
         data: {
           textContent: dto.body ?? updated.body,
-          title: dto.name ?? updated.name
-        }
+          title: dto.name ?? updated.name,
+        },
       });
     }
 
@@ -210,7 +215,7 @@ export class TemplatesService {
 
     await this.prisma.$transaction([
       this.prisma.templateVersion.deleteMany({ where: { templateId } }),
-      this.prisma.template.delete({ where: { id: templateId } })
+      this.prisma.template.delete({ where: { id: templateId } }),
     ]);
 
     this.logger.log(`Template ${templateId} deleted by user ${user.id}`);
@@ -219,7 +224,7 @@ export class TemplatesService {
   async renderTemplate(
     templateId: string,
     dto: RenderTemplateDto,
-    user: AuthenticatedUser
+    user: AuthenticatedUser,
   ): Promise<RenderedLeadPreview[]> {
     const template = await this.prisma.template.findUnique({ where: { id: templateId } });
 
@@ -233,7 +238,7 @@ export class TemplatesService {
     const leads = await this.prisma.lead.findMany({
       where: { projectId: template.projectId },
       orderBy: { createdAt: 'desc' },
-      take: sampleSize
+      take: sampleSize,
     });
 
     if (leads.length === 0) {
@@ -244,21 +249,21 @@ export class TemplatesService {
       leadId: lead.id,
       email: lead.email,
       subject: renderTemplate(template.subject, lead),
-      body: renderTemplate(template.body, lead)
+      body: renderTemplate(template.body, lead),
     }));
   }
 
   async generateAiDrafts(
     templateId: string,
     dto: GenerateTemplateDto,
-    user: AuthenticatedUser
+    user: AuthenticatedUser,
   ): Promise<AiDraftResult[]> {
     const template = await this.prisma.template.findUnique({
       where: { id: templateId },
       include: {
         project: true,
-        activeVersion: true
-      }
+        activeVersion: true,
+      },
     });
 
     if (!template) {
@@ -272,15 +277,15 @@ export class TemplatesService {
       leads = await this.prisma.lead.findMany({
         where: {
           projectId: template.projectId,
-          id: { in: dto.leadIds }
-        }
+          id: { in: dto.leadIds },
+        },
       });
     } else {
       const sampleSize = dto.sampleSize ?? 3;
       leads = await this.prisma.lead.findMany({
         where: { projectId: template.projectId },
         orderBy: { createdAt: 'desc' },
-        take: sampleSize
+        take: sampleSize,
       });
     }
 
@@ -297,7 +302,7 @@ export class TemplatesService {
     const generationConfig = await this.aiConfig.resolveGenerationConfig(
       user.organizationId,
       dto.provider,
-      dto.model
+      dto.model,
     );
 
     const systemPrompt =
@@ -313,8 +318,8 @@ export class TemplatesService {
         lead,
         personalization: {
           enhanced: Boolean(dto.enhancedPersonalization),
-          allowToolUse: Boolean(dto.allowToolUse)
-        }
+          allowToolUse: Boolean(dto.allowToolUse),
+        },
       });
 
       const timeoutMs = this.calculateTimeout(1, generationConfig.provider);
@@ -326,10 +331,10 @@ export class TemplatesService {
           systemPrompt,
           userPrompt,
           model: generationConfig.model,
-          apiKey: generationConfig.apiKey
+          apiKey: generationConfig.apiKey,
         }),
         `AI generation timed out after ${timeoutSeconds}s. Try: (1) Reduce lead count (currently: ${leads.length}), (2) Simplify knowledge base, or (3) Switch to a faster model.`,
-        timeoutMs
+        timeoutMs,
       );
 
       const { subject, body, html } = parseAiResponse(raw);
@@ -348,7 +353,7 @@ export class TemplatesService {
         html,
         templateVersionId: activeVersion?.id ?? undefined,
         provider: generationConfig.provider,
-        notes
+        notes,
       };
     };
 
@@ -357,7 +362,7 @@ export class TemplatesService {
     let nextIndex = 0;
 
     const runWorker = async () => {
-      while (true) {
+      for (;;) {
         const currentIndex = nextIndex;
         nextIndex += 1;
         if (currentIndex >= leads.length) {
@@ -369,18 +374,7 @@ export class TemplatesService {
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           this.logger.warn(`Failed to generate draft for lead ${lead.id}: ${errorMessage}`);
-          
-          // Don't throw - create a failed result instead so other workers can continue
-          results[currentIndex] = {
-            leadId: lead.id,
-            email: lead.email,
-            subject: 'Generation failed',
-            body: `Could not generate personalized draft. ${errorMessage}`,
-            html: null,
-            templateVersionId: activeVersion?.id ?? undefined,
-            provider: generationConfig.provider,
-            notes: `Error: ${errorMessage}`
-          };
+          throw error;
         }
       }
     };
@@ -393,14 +387,14 @@ export class TemplatesService {
   async chatWithTemplate(
     templateId: string,
     dto: { message: string; history?: AiChatMessage[] },
-    user: AuthenticatedUser
+    user: AuthenticatedUser,
   ): Promise<AiChatResponse> {
     const template = await this.prisma.template.findUnique({
       where: { id: templateId },
       include: {
         project: true,
-        activeVersion: true
-      }
+        activeVersion: true,
+      },
     });
 
     if (!template) {
@@ -414,7 +408,9 @@ export class TemplatesService {
     const activeVersion = template.activeVersion;
 
     const conversationHistory = (dto.history ?? [])
-      .map((message) => `${message.role === 'assistant' ? 'Assistant' : 'User'}: ${message.content}`)
+      .map(
+        (message) => `${message.role === 'assistant' ? 'Assistant' : 'User'}: ${message.content}`,
+      )
       .join('\n');
 
     const sourceHighlights = knowledgeSources.slice(0, 3).map((source, index) => {
@@ -424,10 +420,10 @@ export class TemplatesService {
 
     const systemPrompt = [
       'You are Volta, an outreach copywriting assistant helping refine cold email templates.',
-      'You have access to the organization\'s knowledge base and recent AI drafts.',
+      "You have access to the organization's knowledge base and recent AI drafts.",
       'Provide concise, actionable suggestions, and show revised snippets when appropriate.',
       'Always respond with valid JSON: {"message": string, "updates": {"subject"?: string, "body"?: string, "html"?: string|null}}.',
-      'Include the original message text in "message". Only include keys in "updates" when you have concrete replacements.'
+      'Include the original message text in "message". Only include keys in "updates" when you have concrete replacements.',
     ].join(' ');
 
     const templateSummary = `Current template name: ${template.name}\nSubject: ${template.subject}\nBody:\n${template.body}`;
@@ -454,10 +450,10 @@ export class TemplatesService {
         systemPrompt,
         userPrompt,
         model: generationConfig.model,
-        apiKey: generationConfig.apiKey
+        apiKey: generationConfig.apiKey,
       }),
       `AI generation timed out after ${timeoutSeconds}s. Try: (1) Reduce lead count, (2) Simplify knowledge base, or (3) Switch to a faster model.`,
-      timeoutMs
+      timeoutMs,
     );
 
     return parseChatResponse(raw);
@@ -466,10 +462,10 @@ export class TemplatesService {
   async sendDraft(
     templateId: string,
     dto: SendDraftDto,
-    user: AuthenticatedUser
+    user: AuthenticatedUser,
   ): Promise<SendDraftResponse> {
     const template = await this.prisma.template.findUnique({
-      where: { id: templateId }
+      where: { id: templateId },
     });
 
     if (!template) {
@@ -479,7 +475,7 @@ export class TemplatesService {
     await this.projectAccess.ensureProjectAccess(template.projectId, user);
 
     const lead = await this.prisma.lead.findUnique({
-      where: { id: dto.leadId }
+      where: { id: dto.leadId },
     });
 
     if (!lead || lead.projectId !== template.projectId) {
@@ -492,7 +488,7 @@ export class TemplatesService {
       to: lead.email,
       subject: dto.subject,
       body: dto.body,
-      html: dto.html ?? undefined
+      html: dto.html ?? undefined,
     });
 
     await this.prisma.auditLog.create({
@@ -509,9 +505,9 @@ export class TemplatesService {
           messageId: sendResult.messageId,
           email: lead.email,
           gmailConnectionId: sendResult.gmailConnectionId,
-          templateVersionId: dto.templateVersionId ?? null
-        }
-      }
+          templateVersionId: dto.templateVersionId ?? null,
+        },
+      },
     });
 
     return sendResult;
@@ -520,7 +516,7 @@ export class TemplatesService {
   async suggestTemplate(
     projectId: string,
     dto: SuggestTemplateDto,
-    user: AuthenticatedUser
+    user: AuthenticatedUser,
   ): Promise<AiTemplateSuggestion> {
     const { stream } = await this.prepareSuggestionStream(projectId, dto, user);
     let fullText = '';
@@ -532,14 +528,14 @@ export class TemplatesService {
 
     return {
       subject: suggestion.subject,
-      body: suggestion.body
+      body: suggestion.body,
     };
   }
 
   async prepareSuggestionStream(
     projectId: string,
     dto: SuggestTemplateDto,
-    user: AuthenticatedUser
+    user: AuthenticatedUser,
   ): Promise<{ provider: 'openrouter' | 'openai' | 'gemini'; stream: AsyncGenerator<string> }> {
     const context = await this.buildSuggestionContext(projectId, dto, user);
 
@@ -550,7 +546,7 @@ export class TemplatesService {
         userPrompt: context.userPrompt,
         model: context.model,
         apiKey: context.apiKey,
-        timeoutMs: context.timeoutMs
+        timeoutMs: context.timeoutMs,
       });
       return { provider: context.provider, stream };
     }
@@ -561,7 +557,7 @@ export class TemplatesService {
       userPrompt: context.userPrompt,
       model: context.model,
       apiKey: context.apiKey,
-      timeoutMs: context.timeoutMs
+      timeoutMs: context.timeoutMs,
     });
 
     async function* singleChunk() {
@@ -574,7 +570,7 @@ export class TemplatesService {
   private async buildSuggestionContext(
     projectId: string,
     dto: SuggestTemplateDto,
-    user: AuthenticatedUser
+    user: AuthenticatedUser,
   ): Promise<{
     provider: 'openrouter' | 'openai' | 'gemini';
     model: string;
@@ -588,8 +584,8 @@ export class TemplatesService {
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
       select: {
-        brandingJson: true
-      }
+        brandingJson: true,
+      },
     });
 
     if (!project) {
@@ -599,7 +595,7 @@ export class TemplatesService {
     const generationConfig = await this.aiConfig.resolveGenerationConfig(
       user.organizationId,
       dto.provider,
-      dto.model
+      dto.model,
     );
     const resolvedProvider = generationConfig.provider ?? dto.provider ?? 'openrouter';
 
@@ -622,19 +618,20 @@ export class TemplatesService {
       leads = await this.prisma.lead.findMany({
         where: { projectId },
         orderBy: { createdAt: 'desc' },
-        take: sampleSize
+        take: sampleSize,
       });
     }
 
     const hasLeads = leads.length > 0;
 
     if (!hasLeads && sampleSize > 0 && resolvedProvider !== 'gemini') {
-      throw new BadRequestException('Import leads before asking AI to include lead insights in the template.');
+      throw new BadRequestException('Import leads before asking AI to draft a template.');
     }
 
-    const knowledgeBaseRaw = dto.knowledgeBase && dto.knowledgeBase.trim().length > 0
-      ? dto.knowledgeBase
-      : buildKnowledgeBase(project.brandingJson);
+    const knowledgeBaseRaw =
+      dto.knowledgeBase && dto.knowledgeBase.trim().length > 0
+        ? dto.knowledgeBase
+        : buildKnowledgeBase(project.brandingJson);
 
     const knowledgeBase =
       resolvedProvider === 'gemini'
@@ -643,7 +640,7 @@ export class TemplatesService {
             knowledgeBaseRaw,
             resolvedProvider,
             generationConfig.model,
-            generationConfig.apiKey
+            generationConfig.apiKey,
           );
 
     const leadSummary = hasLeads
@@ -653,11 +650,13 @@ export class TemplatesService {
           company: lead.company ?? undefined,
           role: lead.role ?? undefined,
           insights:
-            lead.customJson && typeof lead.customJson === 'object' && !Array.isArray(lead.customJson)
+            lead.customJson &&
+            typeof lead.customJson === 'object' &&
+            !Array.isArray(lead.customJson)
               ? Object.entries(lead.customJson)
                   .slice(0, 3)
                   .map(([key, value]) => `${key}: ${String(value).slice(0, 120)}`)
-              : undefined
+              : undefined,
         }))
       : null;
 
@@ -667,7 +666,7 @@ export class TemplatesService {
     const dataSections = [`Knowledge Base:\n${knowledgeBase}`];
     if (leadSummary && leadSummary.length > 0) {
       dataSections.push(
-        `Lead Sample (JSON):\n${JSON.stringify(leadSummary, null, 2)}\nGuidance: Use this lead data sparingly to personalize the copy. Summarize insights rather than listing every lead.`
+        `Lead Sample (JSON):\n${JSON.stringify(leadSummary, null, 2)}\nGuidance: Use this lead data sparingly to personalize the copy. Summarize insights rather than listing every lead.`,
       );
     }
 
@@ -681,7 +680,7 @@ export class TemplatesService {
       apiKey: generationConfig.apiKey,
       systemPrompt,
       userPrompt,
-      timeoutMs
+      timeoutMs,
     };
   }
 
@@ -689,7 +688,7 @@ export class TemplatesService {
     knowledgeBase: string,
     provider: 'openrouter' | 'openai' | 'gemini',
     model: string,
-    apiKey: string | null
+    apiKey: string | null,
   ): Promise<string> {
     const limit = provider === 'openrouter' ? 4000 : 8000;
     if (knowledgeBase.length <= limit) {
@@ -707,13 +706,15 @@ export class TemplatesService {
         userPrompt,
         model,
         apiKey,
-        timeoutMs: Math.min(15000, this.calculateTimeout(1, provider))
+        timeoutMs: Math.min(15000, this.calculateTimeout(1, provider)),
       });
       if (compressed && compressed.length < knowledgeBase.length) {
         return compressed.slice(0, limit);
       }
     } catch (error) {
-      this.logger.warn(`Failed to compress knowledge base: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(
+        `Failed to compress knowledge base: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
 
     return knowledgeBase.slice(0, limit);
@@ -722,14 +723,14 @@ export class TemplatesService {
   async sendBulkDrafts(
     templateId: string,
     dto: SendBulkDraftsDto,
-    user: AuthenticatedUser
+    user: AuthenticatedUser,
   ): Promise<BulkSendResponse> {
     if (!dto.drafts || dto.drafts.length === 0) {
       throw new BadRequestException('No drafts provided to send.');
     }
 
     const template = await this.prisma.template.findUnique({
-      where: { id: templateId }
+      where: { id: templateId },
     });
 
     if (!template) {
@@ -742,8 +743,8 @@ export class TemplatesService {
     const leads = await this.prisma.lead.findMany({
       where: {
         projectId: template.projectId,
-        id: { in: leadIds }
-      }
+        id: { in: leadIds },
+      },
     });
 
     const leadMap = new Map(leads.map((lead) => [lead.id, lead]));
@@ -757,7 +758,7 @@ export class TemplatesService {
         results.push({
           leadId: draft.leadId,
           status: 'failed',
-          error: 'Lead not found for this template'
+          error: 'Lead not found for this template',
         });
         continue;
       }
@@ -769,7 +770,7 @@ export class TemplatesService {
           to: lead.email,
           subject: draft.subject,
           body: draft.body,
-          html: draft.html ?? undefined
+          html: draft.html ?? undefined,
         });
 
         await this.prisma.auditLog.create({
@@ -787,9 +788,9 @@ export class TemplatesService {
               email: lead.email,
               gmailConnectionId: sendResult.gmailConnectionId,
               provider,
-              templateVersionId: draft.templateVersionId ?? null
-            }
-          }
+              templateVersionId: draft.templateVersionId ?? null,
+            },
+          },
         });
 
         results.push({
@@ -797,13 +798,13 @@ export class TemplatesService {
           status: 'sent',
           messageId: sendResult.messageId,
           sentAt: sendResult.sentAt,
-          gmailConnectionEmail: sendResult.gmailConnectionEmail
+          gmailConnectionEmail: sendResult.gmailConnectionEmail,
         });
       } catch (error) {
         results.push({
           leadId: draft.leadId,
           status: 'failed',
-          error: error instanceof Error ? error.message : 'Failed to send email'
+          error: error instanceof Error ? error.message : 'Failed to send email',
         });
       }
     }
@@ -811,14 +812,17 @@ export class TemplatesService {
     return { results };
   }
 
-  async listTemplateVersions(templateId: string, user: AuthenticatedUser): Promise<TemplateVersionSummary[]> {
+  async listTemplateVersions(
+    templateId: string,
+    user: AuthenticatedUser,
+  ): Promise<TemplateVersionSummary[]> {
     const template = await this.prisma.template.findUnique({
       where: { id: templateId },
       include: {
         versions: {
-          orderBy: { createdAt: 'desc' }
-        }
-      }
+          orderBy: { createdAt: 'desc' },
+        },
+      },
     });
 
     if (!template) {
@@ -833,7 +837,7 @@ export class TemplatesService {
   async createTemplateVersion(
     templateId: string,
     dto: CreateTemplateVersionDto,
-    user: AuthenticatedUser
+    user: AuthenticatedUser,
   ): Promise<TemplateVersionSummary> {
     const template = await this.prisma.template.findUnique({ where: { id: templateId } });
 
@@ -857,8 +861,8 @@ export class TemplatesService {
         htmlContent: dto.htmlContent ?? null,
         textContent: dto.textContent ?? null,
         isActive: dto.activate ?? false,
-        createdByAiProvider: dto.createdByAiProvider ?? null
-      }
+        createdByAiProvider: dto.createdByAiProvider ?? null,
+      },
     });
 
     if (dto.activate) {
@@ -866,18 +870,18 @@ export class TemplatesService {
         this.prisma.templateVersion.updateMany({
           where: {
             templateId,
-            id: { not: version.id }
+            id: { not: version.id },
           },
           data: {
-            isActive: false
-          }
+            isActive: false,
+          },
         }),
         this.prisma.template.update({
           where: { id: templateId },
           data: {
-            activeVersionId: version.id
-          }
-        })
+            activeVersionId: version.id,
+          },
+        }),
       ]);
     }
 
@@ -885,7 +889,7 @@ export class TemplatesService {
       ...version,
       metadataJson: version.metadataJson,
       type,
-      source
+      source,
     });
   }
 
@@ -893,10 +897,10 @@ export class TemplatesService {
     templateId: string,
     versionId: string,
     dto: UpdateTemplateVersionDto,
-    user: AuthenticatedUser
+    user: AuthenticatedUser,
   ): Promise<TemplateVersionSummary> {
     const version = await this.prisma.templateVersion.findUnique({
-      where: { id: versionId }
+      where: { id: versionId },
     });
 
     if (!version || version.templateId !== templateId) {
@@ -917,33 +921,33 @@ export class TemplatesService {
         title: dto.title ?? version.title,
         description: dto.description ?? version.description,
         htmlContent: dto.htmlContent ?? version.htmlContent,
-        textContent: dto.textContent ?? version.textContent
-      }
+        textContent: dto.textContent ?? version.textContent,
+      },
     });
 
     if (template.activeVersionId === versionId && dto.textContent) {
       await this.prisma.template.update({
         where: { id: templateId },
-        data: { body: dto.textContent }
+        data: { body: dto.textContent },
       });
     }
 
     return toTemplateVersionSummary({
       ...updated,
-      metadataJson: updated.metadataJson
+      metadataJson: updated.metadataJson,
     });
   }
 
   async activateTemplateVersion(
     templateId: string,
     versionId: string,
-    user: AuthenticatedUser
+    user: AuthenticatedUser,
   ): Promise<TemplateSummary> {
     const template = await this.prisma.template.findUnique({
       where: { id: templateId },
       include: {
-        versions: true
-      }
+        versions: true,
+      },
     });
 
     if (!template) {
@@ -961,26 +965,26 @@ export class TemplatesService {
       this.prisma.templateVersion.updateMany({
         where: {
           templateId,
-          id: { not: versionId }
+          id: { not: versionId },
         },
         data: {
-          isActive: false
-        }
+          isActive: false,
+        },
       }),
       this.prisma.templateVersion.update({
         where: { id: versionId },
         data: {
-          isActive: true
-        }
+          isActive: true,
+        },
       }),
       this.prisma.template.update({
         where: { id: templateId },
         data: {
           activeVersionId: versionId,
           subject: template.subject,
-          body: version.textContent ?? template.body
-        }
-      })
+          body: version.textContent ?? template.body,
+        },
+      }),
     ]);
 
     const freshTemplate = await this.prisma.template.findUnique({
@@ -988,9 +992,9 @@ export class TemplatesService {
       include: {
         activeVersion: true,
         versions: {
-          orderBy: { createdAt: 'desc' }
-        }
-      }
+          orderBy: { createdAt: 'desc' },
+        },
+      },
     });
 
     if (!freshTemplate) {
@@ -1003,23 +1007,25 @@ export class TemplatesService {
   async suggestHtmlTemplates(
     projectId: string,
     dto: SuggestHtmlTemplateDto,
-    user: AuthenticatedUser
+    user: AuthenticatedUser,
   ): Promise<TemplateVersionSummary[]> {
     await this.projectAccess.ensureProjectAccess(projectId, user);
-    throw new BadRequestException('Template studio is coming soon. HTML suggestions are temporarily disabled.');
+    throw new BadRequestException(
+      'Template studio is coming soon. HTML suggestions are temporarily disabled.',
+    );
   }
 
   async iterateDrafts(
     templateId: string,
     dto: IterateDraftsDto,
-    user: AuthenticatedUser
+    user: AuthenticatedUser,
   ): Promise<AiDraftResult[]> {
     const template = await this.prisma.template.findUnique({
       where: { id: templateId },
       include: {
         project: true,
-        activeVersion: true
-      }
+        activeVersion: true,
+      },
     });
 
     if (!template) {
@@ -1036,8 +1042,8 @@ export class TemplatesService {
     const leads = await this.prisma.lead.findMany({
       where: {
         projectId: template.projectId,
-        id: { in: leadIds }
-      }
+        id: { in: leadIds },
+      },
     });
 
     const leadMap = new Map(leads.map((lead) => [lead.id, lead]));
@@ -1063,7 +1069,7 @@ export class TemplatesService {
     const generationConfig = await this.aiConfig.resolveGenerationConfig(
       user.organizationId,
       dto.provider,
-      dto.model
+      dto.model,
     );
 
     const results: AiDraftResult[] = [];
@@ -1078,7 +1084,7 @@ export class TemplatesService {
           body: 'Lead not found for this project.',
           html: null,
           templateVersionId: templateVersionId ?? undefined,
-          provider: generationConfig.provider
+          provider: generationConfig.provider,
         });
         continue;
       }
@@ -1093,7 +1099,7 @@ export class TemplatesService {
         lead,
         previousText: target.lastDraftText,
         previousHtml: target.lastDraftHtml,
-        instructions: dto.instructions
+        instructions: dto.instructions,
       });
 
       const timeoutMs = this.calculateTimeout(1, generationConfig.provider);
@@ -1105,10 +1111,10 @@ export class TemplatesService {
           systemPrompt,
           userPrompt,
           model: generationConfig.model,
-          apiKey: generationConfig.apiKey
+          apiKey: generationConfig.apiKey,
         }),
         `AI generation timed out after ${timeoutSeconds}s. Try: (1) Reduce lead count (currently: ${dto.targets.length}), (2) Simplify knowledge base, or (3) Switch to a faster model.`,
-        timeoutMs
+        timeoutMs,
       );
 
       const { subject, body, html } = parseAiResponse(raw);
@@ -1120,7 +1126,7 @@ export class TemplatesService {
         body,
         html,
         templateVersionId: templateVersionId ?? undefined,
-        provider: generationConfig.provider
+        provider: generationConfig.provider,
       });
     }
 
@@ -1145,10 +1151,10 @@ function toTemplateSummary(template: {
     name: template.name,
     subject: template.subject,
     body: template.body,
-     activeVersion: template.activeVersion ? toTemplateVersionSummary(template.activeVersion) : null,
-     versions: template.versions ? template.versions.map(toTemplateVersionSummary) : undefined,
+    activeVersion: template.activeVersion ? toTemplateVersionSummary(template.activeVersion) : null,
+    versions: template.versions ? template.versions.map(toTemplateVersionSummary) : undefined,
     createdAt: template.createdAt.toISOString(),
-    updatedAt: template.updatedAt.toISOString()
+    updatedAt: template.updatedAt.toISOString(),
   };
 }
 
@@ -1180,11 +1186,14 @@ function toTemplateVersionSummary(version: TemplateVersionWithRelations): Templa
     description: version.description,
     htmlContent: version.htmlContent,
     textContent: version.textContent,
-    metadata: version.metadataJson && typeof version.metadataJson === 'object' ? (version.metadataJson as Record<string, unknown>) : null,
+    metadata:
+      version.metadataJson && typeof version.metadataJson === 'object'
+        ? (version.metadataJson as Record<string, unknown>)
+        : null,
     isActive: version.isActive,
     createdByAiProvider: version.createdByAiProvider,
     createdAt: version.createdAt.toISOString(),
-    updatedAt: version.updatedAt.toISOString()
+    updatedAt: version.updatedAt.toISOString(),
   };
 }
 
@@ -1230,8 +1239,7 @@ function extractKnowledgeSources(brandingJson: unknown): KnowledgeSource[] {
         : 'upload';
     const summary = typeof obj.summary === 'string' ? obj.summary : '';
     const snippet = typeof obj.snippet === 'string' ? obj.snippet : '';
-    const createdAt =
-      typeof obj.createdAt === 'string' ? obj.createdAt : new Date().toISOString();
+    const createdAt = typeof obj.createdAt === 'string' ? obj.createdAt : new Date().toISOString();
     const url = typeof obj.url === 'string' ? obj.url : undefined;
     const title = typeof obj.title === 'string' ? obj.title : undefined;
 
@@ -1242,7 +1250,7 @@ function extractKnowledgeSources(brandingJson: unknown): KnowledgeSource[] {
       title: title ?? undefined,
       summary,
       snippet,
-      createdAt
+      createdAt,
     });
   }
 
@@ -1278,7 +1286,7 @@ function buildUserPrompt(args: {
     textTemplate,
     htmlTemplate,
     lead,
-    personalization
+    personalization,
   } = args;
   const leadData = {
     email: lead.email,
@@ -1292,12 +1300,10 @@ function buildUserPrompt(args: {
     custom:
       lead.customJson && typeof lead.customJson === 'object' && !Array.isArray(lead.customJson)
         ? (lead.customJson as Record<string, unknown>)
-        : {}
+        : {},
   };
 
-  const htmlSection = htmlTemplate
-    ? `\nHTML Template:\n${htmlTemplate}\n`
-    : '';
+  const htmlSection = htmlTemplate ? `\nHTML Template:\n${htmlTemplate}\n` : '';
 
   const sourceHighlights = knowledgeSources.slice(0, 3).map((source, index) => {
     const title = source.title ?? source.url ?? `Source ${index + 1}`;
@@ -1308,20 +1314,24 @@ function buildUserPrompt(args: {
   const personalizationInstructions: string[] = [];
   if (personalization?.enhanced) {
     personalizationInstructions.push(
-      'Open with a tailored hook that references the lead\'s role and company priorities.'
+      "Open with a tailored hook that references the lead's role and company priorities.",
     );
     personalizationInstructions.push(
-      'Highlight one specific insight or compliment that shows genuine research.'
+      'Highlight one specific insight or compliment that shows genuine research.',
     );
-    personalizationInstructions.push('Keep the message under 160 words even with personal touches.');
+    personalizationInstructions.push(
+      'Keep the message under 160 words even with personal touches.',
+    );
   }
 
   if (personalization?.allowToolUse) {
     if (sourceHighlights.length > 0) {
-      personalizationInstructions.push('Blend in relevant ideas from the research highlights below.');
+      personalizationInstructions.push(
+        'Blend in relevant ideas from the research highlights below.',
+      );
     }
     personalizationInstructions.push(
-      'If you infer details beyond the provided data, flag them as observations rather than confirmed facts.'
+      'If you infer details beyond the provided data, flag them as observations rather than confirmed facts.',
     );
   } else {
     personalizationInstructions.push('Do not fabricate facts beyond the supplied context.');
@@ -1339,7 +1349,7 @@ function buildUserPrompt(args: {
   return `Knowledge Base:\n${knowledgeBase}\n\nBase Template:\nSubject: ${templateSubject}\nText Body:\n${textTemplate}${htmlSection}\nLead Data (JSON):\n${JSON.stringify(
     leadData,
     null,
-    2
+    2,
   )}${researchSection}\n\nInstructions:\n- Maintain a friendly, human tone.\n- Keep body under 150 words.\n- Include a single clear call-to-action.\n- If an HTML template is provided, reuse its layout/styles while personalizing copy.\n- Return your answer as JSON with keys 'subject', 'body' (plain text) and 'html' (HTML email).${extraInstructions}`;
 }
 
@@ -1401,7 +1411,7 @@ function parseChatResponse(raw: string): AiChatResponse {
         return {
           message: parsed.message,
           updates: parsed.updates,
-          tokensApprox: parsed.tokensApprox
+          tokensApprox: parsed.tokensApprox,
         };
       }
     } catch {
@@ -1426,7 +1436,7 @@ function parseChatResponse(raw: string): AiChatResponse {
   }
 
   return {
-    message: trimmed
+    message: trimmed,
   };
 }
 
@@ -1458,7 +1468,7 @@ function buildDraftIterationPrompt(args: {
     lead,
     previousText,
     previousHtml,
-    instructions
+    instructions,
   } = args;
 
   const leadData = {
@@ -1473,7 +1483,7 @@ function buildDraftIterationPrompt(args: {
     custom:
       lead.customJson && typeof lead.customJson === 'object' && !Array.isArray(lead.customJson)
         ? (lead.customJson as Record<string, unknown>)
-        : {}
+        : {},
   };
 
   const feedbackSection = instructions ? `\nCreator feedback: ${instructions}` : '';

@@ -28,7 +28,7 @@ describe('AuthService', () => {
     organizationId: 'org-123',
     role: OrganizationRole.OWNER,
     createdAt: mockDate,
-    updatedAt: mockDate
+    updatedAt: mockDate,
   };
 
   const mockOrganization = {
@@ -36,7 +36,7 @@ describe('AuthService', () => {
     name: 'Test Organization',
     plan: 'free',
     createdAt: mockDate,
-    updatedAt: mockDate
+    updatedAt: mockDate,
   };
 
   const mockProject = {
@@ -46,7 +46,7 @@ describe('AuthService', () => {
     timezone: 'UTC',
     brandingJson: null,
     createdAt: mockDate,
-    updatedAt: mockDate
+    updatedAt: mockDate,
   };
 
   const mockProjectMember = {
@@ -56,7 +56,7 @@ describe('AuthService', () => {
     role: ProjectRole.OWNER,
     createdAt: mockDate,
     updatedAt: mockDate,
-    project: mockProject
+    project: mockProject,
   };
 
   const mockSession = {
@@ -65,7 +65,7 @@ describe('AuthService', () => {
     userId: 'user-123',
     expires: new Date('2024-01-08T00:00:00Z'),
     createdAt: mockDate,
-    updatedAt: mockDate
+    updatedAt: mockDate,
   };
 
   beforeEach(() => {
@@ -76,34 +76,34 @@ describe('AuthService', () => {
       user: {
         findUnique: vi.fn(),
         create: vi.fn(),
-        update: vi.fn()
+        update: vi.fn(),
       },
       organization: {
-        create: vi.fn()
+        create: vi.fn(),
       },
       project: {
         create: vi.fn(),
-        findUnique: vi.fn()
+        findUnique: vi.fn(),
       },
       projectMember: {
         create: vi.fn(),
-        findMany: vi.fn()
+        findMany: vi.fn(),
       },
       account: {
         create: vi.fn(),
-        upsert: vi.fn()
+        upsert: vi.fn(),
       },
-      $transaction: vi.fn()
+      $transaction: vi.fn(),
     } as any;
 
     sessionService = {
       createSession: vi.fn(),
       invalidateSession: vi.fn(),
-      getSessionWithUser: vi.fn()
+      getSessionWithUser: vi.fn(),
     } as any;
 
     configService = {
-      get: vi.fn()
+      get: vi.fn(),
     } as any;
 
     service = new AuthService(prisma, sessionService, configService);
@@ -115,19 +115,13 @@ describe('AuthService', () => {
       password: 'SecurePass123!',
       organizationName: 'New Organization',
       displayName: 'New User',
-      projectName: 'My Project'
+      projectName: 'My Project',
     };
 
     it('should successfully register a new user with all fields', async () => {
       vi.spyOn(prisma.user, 'findUnique').mockResolvedValue(null);
       vi.spyOn(bcrypt, 'hash').mockResolvedValue('hashed-password' as never);
       vi.spyOn(sessionService, 'createSession').mockResolvedValue(mockSession);
-
-      const transactionResult = {
-        user: mockUser,
-        organization: mockOrganization,
-        projectMemberships: [mockProjectMember]
-      };
 
       vi.spyOn(prisma, '$transaction').mockImplementation(async (callback) => {
         return await callback(prisma);
@@ -148,21 +142,21 @@ describe('AuthService', () => {
           id: mockUser.id,
           email: mockUser.email,
           displayName: mockUser.displayName,
-          organizationRole: mockUser.role
+          organizationRole: mockUser.role,
         },
         organization: {
           id: mockOrganization.id,
           name: mockOrganization.name,
-          plan: mockOrganization.plan
+          plan: mockOrganization.plan,
         },
         projects: [
           {
             id: mockProject.id,
             name: mockProject.name,
             timezone: mockProject.timezone,
-            role: ProjectRole.OWNER
-          }
-        ]
+            role: ProjectRole.OWNER,
+          },
+        ],
       });
 
       expect(bcrypt.hash).toHaveBeenCalledWith(signUpDto.password, 12);
@@ -172,7 +166,7 @@ describe('AuthService', () => {
     it('should use default project name when not provided', async () => {
       const dtoWithoutProjectName = {
         ...signUpDto,
-        projectName: undefined
+        projectName: undefined,
       };
 
       vi.spyOn(prisma.user, 'findUnique').mockResolvedValue(null);
@@ -203,7 +197,7 @@ describe('AuthService', () => {
       vi.spyOn(prisma.user, 'findUnique').mockResolvedValue(mockUser);
 
       await expect(service.signUp(signUpDto)).rejects.toThrow(
-        new BadRequestException('Email already registered')
+        new BadRequestException('Email already registered'),
       );
 
       expect(bcrypt.hash).not.toHaveBeenCalled();
@@ -213,7 +207,7 @@ describe('AuthService', () => {
     it('should normalize email to lowercase', async () => {
       const uppercaseEmailDto = {
         ...signUpDto,
-        email: 'NewUser@EXAMPLE.COM'
+        email: 'NewUser@EXAMPLE.COM',
       };
 
       vi.spyOn(prisma.user, 'findUnique').mockResolvedValue(null);
@@ -233,7 +227,7 @@ describe('AuthService', () => {
       await service.signUp(uppercaseEmailDto);
 
       expect(prisma.user.findUnique).toHaveBeenCalledWith({
-        where: { email: 'newuser@example.com' }
+        where: { email: 'newuser@example.com' },
       });
     });
 
@@ -271,13 +265,9 @@ describe('AuthService', () => {
       vi.spyOn(prisma.user, 'findUnique').mockResolvedValue(null);
       vi.spyOn(bcrypt, 'hash').mockResolvedValue('hashed-password' as never);
 
-      vi.spyOn(prisma, '$transaction').mockRejectedValue(
-        new Error('Database transaction failed')
-      );
+      vi.spyOn(prisma, '$transaction').mockRejectedValue(new Error('Database transaction failed'));
 
-      await expect(service.signUp(signUpDto)).rejects.toThrow(
-        'Database transaction failed'
-      );
+      await expect(service.signUp(signUpDto)).rejects.toThrow('Database transaction failed');
 
       expect(sessionService.createSession).not.toHaveBeenCalled();
     });
@@ -285,7 +275,7 @@ describe('AuthService', () => {
     it('should handle null displayName', async () => {
       const dtoWithoutDisplayName = {
         ...signUpDto,
-        displayName: undefined
+        displayName: undefined,
       };
 
       vi.spyOn(prisma.user, 'findUnique').mockResolvedValue(null);
@@ -316,13 +306,13 @@ describe('AuthService', () => {
   describe('login', () => {
     const loginDto = {
       email: 'test@example.com',
-      password: 'SecurePass123!'
+      password: 'SecurePass123!',
     };
 
     const userWithRelations = {
       ...mockUser,
       organization: mockOrganization,
-      projectMemberships: [mockProjectMember]
+      projectMemberships: [mockProjectMember],
     };
 
     it('should successfully login with valid credentials', async () => {
@@ -339,21 +329,21 @@ describe('AuthService', () => {
           id: mockUser.id,
           email: mockUser.email,
           displayName: mockUser.displayName,
-          organizationRole: mockUser.role
+          organizationRole: mockUser.role,
         },
         organization: {
           id: mockOrganization.id,
           name: mockOrganization.name,
-          plan: mockOrganization.plan
+          plan: mockOrganization.plan,
         },
         projects: [
           {
             id: mockProject.id,
             name: mockProject.name,
             timezone: mockProject.timezone,
-            role: ProjectRole.OWNER
-          }
-        ]
+            role: ProjectRole.OWNER,
+          },
+        ],
       });
 
       expect(bcrypt.compare).toHaveBeenCalledWith(loginDto.password, mockUser.passwordHash);
@@ -364,7 +354,7 @@ describe('AuthService', () => {
       vi.spyOn(prisma.user, 'findUnique').mockResolvedValue(null);
 
       await expect(service.login(loginDto)).rejects.toThrow(
-        new BadRequestException('Invalid credentials')
+        new BadRequestException('Invalid credentials'),
       );
 
       expect(bcrypt.compare).not.toHaveBeenCalled();
@@ -374,13 +364,13 @@ describe('AuthService', () => {
     it('should throw error if user has no password hash (OAuth user)', async () => {
       const oauthUser = {
         ...userWithRelations,
-        passwordHash: null
+        passwordHash: null,
       };
 
       vi.spyOn(prisma.user, 'findUnique').mockResolvedValue(oauthUser as any);
 
       await expect(service.login(loginDto)).rejects.toThrow(
-        new BadRequestException('Invalid credentials')
+        new BadRequestException('Invalid credentials'),
       );
 
       expect(bcrypt.compare).not.toHaveBeenCalled();
@@ -392,7 +382,7 @@ describe('AuthService', () => {
       vi.spyOn(bcrypt, 'compare').mockResolvedValue(false as never);
 
       await expect(service.login(loginDto)).rejects.toThrow(
-        new BadRequestException('Invalid credentials')
+        new BadRequestException('Invalid credentials'),
       );
 
       expect(sessionService.createSession).not.toHaveBeenCalled();
@@ -401,7 +391,7 @@ describe('AuthService', () => {
     it('should normalize email to lowercase', async () => {
       const uppercaseLoginDto = {
         email: 'TEST@EXAMPLE.COM',
-        password: 'SecurePass123!'
+        password: 'SecurePass123!',
       };
 
       vi.spyOn(prisma.user, 'findUnique').mockResolvedValue(userWithRelations as any);
@@ -416,10 +406,10 @@ describe('AuthService', () => {
           organization: true,
           projectMemberships: {
             include: {
-              project: true
-            }
-          }
-        }
+              project: true,
+            },
+          },
+        },
       });
     });
 
@@ -436,10 +426,10 @@ describe('AuthService', () => {
           organization: true,
           projectMemberships: {
             include: {
-              project: true
-            }
-          }
-        }
+              project: true,
+            },
+          },
+        },
       });
     });
 
@@ -460,7 +450,7 @@ describe('AuthService', () => {
         timezone: 'America/New_York',
         brandingJson: null,
         createdAt: mockDate,
-        updatedAt: mockDate
+        updatedAt: mockDate,
       };
 
       const secondMembership = {
@@ -470,12 +460,12 @@ describe('AuthService', () => {
         role: ProjectRole.MEMBER,
         createdAt: mockDate,
         updatedAt: mockDate,
-        project: secondProject
+        project: secondProject,
       };
 
       const userWithMultipleProjects = {
         ...userWithRelations,
-        projectMemberships: [mockProjectMember, secondMembership]
+        projectMemberships: [mockProjectMember, secondMembership],
       };
 
       vi.spyOn(prisma.user, 'findUnique').mockResolvedValue(userWithMultipleProjects as any);
@@ -489,29 +479,29 @@ describe('AuthService', () => {
         id: secondProject.id,
         name: secondProject.name,
         timezone: secondProject.timezone,
-        role: ProjectRole.MEMBER
+        role: ProjectRole.MEMBER,
       });
     });
   });
 
   describe('googleAuth', () => {
     const googleAuthDto = {
-      idToken: 'valid-google-token'
+      idToken: 'valid-google-token',
     };
 
     const googlePayload = {
       sub: 'google-account-123',
       email: 'googleuser@example.com',
       name: 'Google User',
-      hd: 'example.com'
+      hd: 'example.com',
     };
 
     const mockOAuthClient = {
-      verifyIdToken: vi.fn()
+      verifyIdToken: vi.fn(),
     };
 
     const mockTicket = {
-      getPayload: vi.fn()
+      getPayload: vi.fn(),
     };
 
     beforeEach(() => {
@@ -528,7 +518,7 @@ describe('AuthService', () => {
       vi.spyOn(configService, 'get').mockReturnValue(undefined);
 
       await expect(service.googleAuth(googleAuthDto)).rejects.toThrow(
-        new BadRequestException('Google OAuth provider not configured.')
+        new BadRequestException('Google OAuth provider not configured.'),
       );
     });
 
@@ -536,7 +526,7 @@ describe('AuthService', () => {
       mockOAuthClient.verifyIdToken.mockRejectedValue(new Error('Invalid token'));
 
       await expect(service.googleAuth(googleAuthDto)).rejects.toThrow(
-        new BadRequestException('Invalid Google credentials.')
+        new BadRequestException('Invalid Google credentials.'),
       );
     });
 
@@ -545,7 +535,7 @@ describe('AuthService', () => {
       mockTicket.getPayload.mockReturnValue({ sub: 'google-123' });
 
       await expect(service.googleAuth(googleAuthDto)).rejects.toThrow(
-        new BadRequestException('Google account does not expose an email address.')
+        new BadRequestException('Google account does not expose an email address.'),
       );
     });
 
@@ -555,13 +545,14 @@ describe('AuthService', () => {
 
       vi.spyOn(prisma.user, 'findUnique')
         .mockResolvedValueOnce(null) // First check - user doesn't exist
-        .mockResolvedValueOnce({ // After transaction - hydrated user
+        .mockResolvedValueOnce({
+          // After transaction - hydrated user
           ...mockUser,
           email: googlePayload.email.toLowerCase(),
           displayName: googlePayload.name,
           passwordHash: null,
           organization: mockOrganization,
-          projectMemberships: [mockProjectMember]
+          projectMemberships: [mockProjectMember],
         } as any);
 
       vi.spyOn(sessionService, 'createSession').mockResolvedValue(mockSession);
@@ -576,7 +567,7 @@ describe('AuthService', () => {
         ...mockUser,
         email: googlePayload.email.toLowerCase(),
         displayName: googlePayload.name,
-        passwordHash: null
+        passwordHash: null,
       });
       vi.spyOn(prisma.projectMember, 'create').mockResolvedValue(mockProjectMember);
       vi.spyOn(prisma.account, 'create').mockResolvedValue({} as any);
@@ -591,8 +582,8 @@ describe('AuthService', () => {
           providerAccountId: googlePayload.sub,
           type: 'oauth',
           id_token: googleAuthDto.idToken,
-          token_type: 'Bearer'
-        }
+          token_type: 'Bearer',
+        },
       });
     });
 
@@ -603,15 +594,16 @@ describe('AuthService', () => {
       const existingGoogleUser = {
         ...mockUser,
         email: googlePayload.email.toLowerCase(),
-        passwordHash: null
+        passwordHash: null,
       };
 
       vi.spyOn(prisma.user, 'findUnique')
         .mockResolvedValueOnce(existingGoogleUser) // First check - user exists
-        .mockResolvedValueOnce({ // Hydrated user
+        .mockResolvedValueOnce({
+          // Hydrated user
           ...existingGoogleUser,
           organization: mockOrganization,
-          projectMemberships: [mockProjectMember]
+          projectMemberships: [mockProjectMember],
         } as any);
 
       vi.spyOn(prisma.account, 'upsert').mockResolvedValue({} as any);
@@ -625,12 +617,12 @@ describe('AuthService', () => {
         where: {
           provider_providerAccountId: {
             provider: 'google',
-            providerAccountId: googlePayload.sub
-          }
+            providerAccountId: googlePayload.sub,
+          },
         },
         update: {
           id_token: googleAuthDto.idToken,
-          token_type: 'Bearer'
+          token_type: 'Bearer',
         },
         create: {
           userId: existingGoogleUser.id,
@@ -638,8 +630,8 @@ describe('AuthService', () => {
           providerAccountId: googlePayload.sub,
           type: 'oauth',
           id_token: googleAuthDto.idToken,
-          token_type: 'Bearer'
-        }
+          token_type: 'Bearer',
+        },
       });
     });
 
@@ -651,7 +643,7 @@ describe('AuthService', () => {
         ...mockUser,
         email: googlePayload.email.toLowerCase(),
         displayName: 'Old Name',
-        passwordHash: null
+        passwordHash: null,
       };
 
       vi.spyOn(prisma.user, 'findUnique')
@@ -660,13 +652,13 @@ describe('AuthService', () => {
           ...existingUser,
           displayName: googlePayload.name,
           organization: mockOrganization,
-          projectMemberships: [mockProjectMember]
+          projectMemberships: [mockProjectMember],
         } as any);
 
       vi.spyOn(prisma.account, 'upsert').mockResolvedValue({} as any);
       vi.spyOn(prisma.user, 'update').mockResolvedValue({
         ...existingUser,
-        displayName: googlePayload.name
+        displayName: googlePayload.name,
       });
       vi.spyOn(sessionService, 'createSession').mockResolvedValue(mockSession);
 
@@ -674,7 +666,7 @@ describe('AuthService', () => {
 
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: existingUser.id },
-        data: { displayName: googlePayload.name }
+        data: { displayName: googlePayload.name },
       });
     });
 
@@ -686,7 +678,7 @@ describe('AuthService', () => {
         ...mockUser,
         email: googlePayload.email.toLowerCase(),
         displayName: googlePayload.name,
-        passwordHash: null
+        passwordHash: null,
       };
 
       vi.spyOn(prisma.user, 'findUnique')
@@ -694,7 +686,7 @@ describe('AuthService', () => {
         .mockResolvedValueOnce({
           ...existingUser,
           organization: mockOrganization,
-          projectMemberships: [mockProjectMember]
+          projectMemberships: [mockProjectMember],
         } as any);
 
       vi.spyOn(prisma.account, 'upsert').mockResolvedValue({} as any);
@@ -709,7 +701,7 @@ describe('AuthService', () => {
     it('should use email prefix as default displayName if name not provided', async () => {
       const payloadWithoutName = {
         ...googlePayload,
-        name: undefined
+        name: undefined,
       };
 
       mockOAuthClient.verifyIdToken.mockResolvedValue(mockTicket);
@@ -721,7 +713,7 @@ describe('AuthService', () => {
           ...mockUser,
           displayName: 'googleuser',
           organization: mockOrganization,
-          projectMemberships: [mockProjectMember]
+          projectMemberships: [mockProjectMember],
         } as any);
 
       vi.spyOn(sessionService, 'createSession').mockResolvedValue(mockSession);
@@ -751,7 +743,7 @@ describe('AuthService', () => {
         .mockResolvedValueOnce({
           ...mockUser,
           organization: mockOrganization,
-          projectMemberships: [mockProjectMember]
+          projectMemberships: [mockProjectMember],
         } as any);
 
       vi.spyOn(sessionService, 'createSession').mockResolvedValue(mockSession);
@@ -776,7 +768,7 @@ describe('AuthService', () => {
       const payloadWithoutHd = {
         sub: 'google-123',
         email: 'personal@gmail.com',
-        name: 'Personal User'
+        name: 'Personal User',
       };
 
       mockOAuthClient.verifyIdToken.mockResolvedValue(mockTicket);
@@ -787,7 +779,7 @@ describe('AuthService', () => {
         .mockResolvedValueOnce({
           ...mockUser,
           organization: mockOrganization,
-          projectMemberships: [mockProjectMember]
+          projectMemberships: [mockProjectMember],
         } as any);
 
       vi.spyOn(sessionService, 'createSession').mockResolvedValue(mockSession);
@@ -811,7 +803,7 @@ describe('AuthService', () => {
     it('should normalize email to lowercase', async () => {
       const payloadWithUppercaseEmail = {
         ...googlePayload,
-        email: 'GoogleUser@EXAMPLE.COM'
+        email: 'GoogleUser@EXAMPLE.COM',
       };
 
       mockOAuthClient.verifyIdToken.mockResolvedValue(mockTicket);
@@ -823,7 +815,7 @@ describe('AuthService', () => {
           ...mockUser,
           email: 'googleuser@example.com',
           organization: mockOrganization,
-          projectMemberships: [mockProjectMember]
+          projectMemberships: [mockProjectMember],
         } as any);
 
       vi.spyOn(sessionService, 'createSession').mockResolvedValue(mockSession);
@@ -848,9 +840,7 @@ describe('AuthService', () => {
       mockOAuthClient.verifyIdToken.mockResolvedValue(mockTicket);
       mockTicket.getPayload.mockReturnValue(googlePayload);
 
-      vi.spyOn(prisma.user, 'findUnique')
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null); // Failed to load user
+      vi.spyOn(prisma.user, 'findUnique').mockResolvedValueOnce(null).mockResolvedValueOnce(null); // Failed to load user
 
       vi.spyOn(prisma, '$transaction').mockImplementation(async (callback) => {
         return await callback(prisma);
@@ -863,14 +853,14 @@ describe('AuthService', () => {
       vi.spyOn(prisma.account, 'create').mockResolvedValue({} as any);
 
       await expect(service.googleAuth(googleAuthDto)).rejects.toThrow(
-        new BadRequestException('Unable to load user after Google authentication.')
+        new BadRequestException('Unable to load user after Google authentication.'),
       );
     });
 
     it('should use googleAccountId as fallback when sub is missing', async () => {
       const payloadWithoutSub = {
         email: 'user@example.com',
-        name: 'Test User'
+        name: 'Test User',
       };
 
       mockOAuthClient.verifyIdToken.mockResolvedValue(mockTicket);
@@ -881,7 +871,7 @@ describe('AuthService', () => {
         .mockResolvedValueOnce({
           ...mockUser,
           organization: mockOrganization,
-          projectMemberships: [mockProjectMember]
+          projectMemberships: [mockProjectMember],
         } as any);
 
       vi.spyOn(sessionService, 'createSession').mockResolvedValue(mockSession);
@@ -907,13 +897,13 @@ describe('AuthService', () => {
     it('should correctly format session response', async () => {
       const loginDto = {
         email: 'test@example.com',
-        password: 'SecurePass123!'
+        password: 'SecurePass123!',
       };
 
       const userWithRelations = {
         ...mockUser,
         organization: mockOrganization,
-        projectMemberships: [mockProjectMember]
+        projectMemberships: [mockProjectMember],
       };
 
       vi.spyOn(prisma.user, 'findUnique').mockResolvedValue(userWithRelations as any);
@@ -932,13 +922,13 @@ describe('AuthService', () => {
         id: mockUser.id,
         email: mockUser.email,
         displayName: mockUser.displayName,
-        organizationRole: mockUser.role
+        organizationRole: mockUser.role,
       });
 
       expect(result.organization).toEqual({
         id: mockOrganization.id,
         name: mockOrganization.name,
-        plan: mockOrganization.plan
+        plan: mockOrganization.plan,
       });
 
       expect(result.projects).toHaveLength(1);
@@ -946,7 +936,7 @@ describe('AuthService', () => {
         id: mockProject.id,
         name: mockProject.name,
         timezone: mockProject.timezone,
-        role: ProjectRole.OWNER
+        role: ProjectRole.OWNER,
       });
     });
   });

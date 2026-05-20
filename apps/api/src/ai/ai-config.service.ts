@@ -35,7 +35,7 @@ export class AiConfigService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tokenCipher: TokenCipherService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
   ) {}
 
   private sanitizeStoredConfig(input: unknown): StoredAiConfig {
@@ -66,35 +66,43 @@ export class AiConfigService {
 
     return {
       defaultProvider: data.defaultProvider,
-      providers: sanitizedProviders
+      providers: sanitizedProviders,
     };
   }
 
   private getEnvKey(provider: Provider): string | undefined {
     switch (provider) {
       case 'openrouter':
-        return this.configService.get<string>('OPENROUTER_API_KEY') ?? process.env.OPENROUTER_API_KEY ?? undefined;
+        return (
+          this.configService.get<string>('OPENROUTER_API_KEY') ??
+          process.env.OPENROUTER_API_KEY ??
+          undefined
+        );
       case 'openai':
-        return this.configService.get<string>('OPENAI_API_KEY') ?? process.env.OPENAI_API_KEY ?? undefined;
+        return (
+          this.configService.get<string>('OPENAI_API_KEY') ??
+          process.env.OPENAI_API_KEY ??
+          undefined
+        );
       case 'gemini':
-        return this.configService.get<string>('GEMINI_API_KEY') ?? process.env.GEMINI_API_KEY ?? undefined;
+        return (
+          this.configService.get<string>('GEMINI_API_KEY') ??
+          process.env.GEMINI_API_KEY ??
+          undefined
+        );
       default:
         return undefined;
     }
   }
 
   private getDefaultProvider(stored?: Provider): Provider {
-    // Treat Gemini as the universal default, ignoring stored org preference.
-    if (stored && stored === 'gemini') {
-      return 'gemini';
+    if (stored && PROVIDERS.includes(stored)) {
+      return stored;
     }
-    return 'gemini';
+    return 'openrouter';
   }
 
-  private getProviderSecrets(
-    provider: Provider,
-    stored?: StoredProviderConfig
-  ): ProviderSecrets {
+  private getProviderSecrets(provider: Provider, stored?: StoredProviderConfig): ProviderSecrets {
     let decrypted: string | null = null;
     let hasStoredKey = false;
 
@@ -116,34 +124,37 @@ export class AiConfigService {
     return {
       apiKey,
       model,
-      hasStoredKey
+      hasStoredKey,
     };
   }
 
   async getOrganizationSecrets(organizationId: string): Promise<OrganizationAiSecrets> {
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
-      select: { aiConfigJson: true }
+      select: { aiConfigJson: true },
     });
 
     const stored = this.sanitizeStoredConfig(organization?.aiConfigJson ?? null);
     const defaultProvider = this.getDefaultProvider(stored.defaultProvider);
 
-    const providers = PROVIDERS.reduce<Record<Provider, ProviderSecrets>>((acc, provider) => {
-      acc[provider] = this.getProviderSecrets(provider, stored.providers?.[provider]);
-      return acc;
-    }, {} as Record<Provider, ProviderSecrets>);
+    const providers = PROVIDERS.reduce<Record<Provider, ProviderSecrets>>(
+      (acc, provider) => {
+        acc[provider] = this.getProviderSecrets(provider, stored.providers?.[provider]);
+        return acc;
+      },
+      {} as Record<Provider, ProviderSecrets>,
+    );
 
     return {
       defaultProvider,
-      providers
+      providers,
     };
   }
 
   async resolveGenerationConfig(
     organizationId: string,
     requestedProvider?: Provider,
-    requestedModel?: string
+    requestedModel?: string,
   ): Promise<{ provider: Provider; model: string; apiKey: string | null; hasKey: boolean }> {
     const config = await this.getOrganizationSecrets(organizationId);
     const provider = requestedProvider ?? config.defaultProvider;
@@ -154,7 +165,7 @@ export class AiConfigService {
     if (!apiKey) {
       const providerLabel = provider.toUpperCase();
       throw new BadRequestException(
-        `${providerLabel} API key is not configured. Add one in AI settings or set the ${providerLabel}_API_KEY environment variable.`
+        `${providerLabel} API key is not configured. Add one in AI settings or set the ${providerLabel}_API_KEY environment variable.`,
       );
     }
 
@@ -165,7 +176,7 @@ export class AiConfigService {
       provider,
       model,
       apiKey,
-      hasKey: Boolean(apiKey)
+      hasKey: Boolean(apiKey),
     };
   }
 
@@ -177,16 +188,16 @@ export class AiConfigService {
         const providerSecrets = secrets.providers[provider];
         acc[provider] = {
           hasKey: providerSecrets.hasStoredKey || Boolean(providerSecrets.apiKey),
-          model: providerSecrets.model ?? null
+          model: providerSecrets.model ?? null,
         };
         return acc;
       },
-      {} as Record<Provider, { hasKey: boolean; model: string | null }>
+      {} as Record<Provider, { hasKey: boolean; model: string | null }>,
     );
 
     return {
       defaultProvider: 'gemini',
-      providers
+      providers,
     };
   }
 
