@@ -21,11 +21,18 @@ export default function GmailConnectedPage({ searchParams }: ConnectedPageProps)
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center px-4 py-10">
-      <div className="w-full max-w-lg rounded-lg border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">
+      <div className="w-full max-w-lg border-2 border-volta-dark bg-volta-surface p-8 text-center shadow-neo-lg">
+        <span
+          className={`inline-flex border-2 border-volta-dark px-2 py-1 font-mono text-[0.7rem] font-bold uppercase tracking-widest shadow-neo-sm ${
+            success ? 'bg-volta-success-soft text-volta-success' : 'bg-volta-danger-soft text-volta-danger'
+          }`}
+        >
+          {success ? 'Success' : 'Error'}
+        </span>
+        <h1 className="mt-3 font-display text-3xl font-bold tracking-tight text-volta-dark">
           {success ? 'Gmail Connected' : 'Connection Failed'}
         </h1>
-        <p className="mt-3 text-sm text-slate-600">
+        <p className="mt-3 text-sm text-volta-stone-700">
           {success
             ? email
               ? `The Gmail account ${email} is now connected. You can start sending campaigns from the dashboard.`
@@ -35,7 +42,7 @@ export default function GmailConnectedPage({ searchParams }: ConnectedPageProps)
         <div className="mt-6 flex justify-center">
           <Link
             href="/dashboard"
-            className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            className="inline-flex items-center border-2 border-volta-dark bg-volta-primary px-4 py-2 text-sm font-bold text-white shadow-neo transition-transform hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-neo-hover active:translate-x-[1px] active:translate-y-[1px] active:shadow-neo-sm"
           >
             Return to dashboard
           </Link>

@@ -1966,7 +1966,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
 
   if (status === "loading" || !sessionToken) {
     return (
-      <main className="flex min-h-screen items-center justify-center text-sm text-slate-600">
+      <main className="flex min-h-screen items-center justify-center text-sm text-volta-stone-600">
         Loading templates…
       </main>
     );
@@ -1974,96 +1974,99 @@ const resolveProvider = useCallback((): AiProvider | null => {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-4 py-8">
-      <header>
-        <Link href="/dashboard" className="text-sm text-slate-500 hover:text-slate-700">
+      <header className="flex flex-col gap-3">
+        <Link href="/dashboard" className="inline-flex w-fit font-mono text-[0.7rem] font-bold uppercase tracking-widest text-volta-primary hover:underline">
           ← Back to dashboard
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Templates & Drafts</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <span className="inline-flex w-fit border-2 border-volta-dark bg-volta-accent px-2 py-1 font-mono text-[0.7rem] font-bold uppercase tracking-widest text-volta-dark shadow-neo-sm">
+          Campaign Studio
+        </span>
+        <h1 className="font-display text-4xl font-bold tracking-tight text-volta-dark">Templates &amp; Drafts</h1>
+        <p className="text-sm text-volta-stone-700">
           Define the email subject and body using double curly braces for placeholders (e.g.
-          <code className="mx-1 font-mono text-xs">{'{{first_name}}'}</code>
-          or <code className="mx-1 font-mono text-xs">{'{{company|your company}}'}</code> for fallbacks).
+          <code className="mx-1 border border-volta-dark bg-volta-stone-100 px-1 font-mono text-xs">{'{{first_name}}'}</code>
+          or <code className="mx-1 border border-volta-dark bg-volta-stone-100 px-1 font-mono text-xs">{'{{company|your company}}'}</code> for fallbacks).
           Preview the rendered copy on recent leads before sending.
         </p>
       </header>
 
       {error ? (
-        <div className="rounded border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="border-2 border-volta-danger bg-volta-danger-soft px-4 py-3 text-sm text-volta-danger">
           {error}
         </div>
       ) : null}
 
       {success ? (
-        <div className="rounded border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <div className="border-2 border-volta-success bg-volta-success-soft px-4 py-3 text-sm text-volta-success">
           {success}
         </div>
       ) : null}
 
-      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-medium text-slate-800">Brand Knowledge Onboarding</h2>
-        <p className="mt-1 text-sm text-slate-600">
+      <section className="border-2 border-volta-dark bg-volta-surface p-6 shadow-neo-sm">
+        <h2 className="text-lg font-medium text-volta-dark">Brand Knowledge Onboarding</h2>
+        <p className="mt-1 text-sm text-volta-stone-600">
           Ground the AI with your narrative, then layer in supporting sources. The more context you add, the
           more bespoke your outreach becomes.
         </p>
         <div className="mt-4 space-y-6">
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Step 1 • Core narrative</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-volta-stone-500">Step 1 • Core narrative</h3>
             <textarea
               value={knowledgeBase}
               onChange={(event) => setKnowledgeBase(event.target.value)}
               rows={6}
-              className="mt-3 w-full rounded border border-slate-300 px-3 py-2 text-sm font-mono focus:border-slate-500 focus:outline-none"
+              className="mt-3 w-full border-2 border-volta-dark px-3 py-2 text-sm font-mono focus:border-volta-dark focus:outline-none"
               placeholder="Summarize your brand story, tone, ideal customer profile, proof points, and objections you handle best."
             />
           </div>
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Step 2 • Add supporting sources</h3>
-            <p className="mt-1 text-sm text-slate-600">Choose one or more options below. We append everything to your knowledge base so you can edit before saving.</p>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-volta-stone-500">Step 2 • Add supporting sources</h3>
+            <p className="mt-1 text-sm text-volta-stone-600">Choose one or more options below. We append everything to your knowledge base so you can edit before saving.</p>
             <div className="mt-3 grid gap-4 md:grid-cols-3">
-              <div className="rounded border border-slate-200 p-4">
-                <h4 className="text-base font-medium text-slate-800">Scrape your website</h4>
-                <p className="mt-1 text-sm text-slate-600">Paste your homepage or product URL. We pull readable copy only.</p>
+              <div className="border-2 border-volta-dark p-4">
+                <h4 className="text-base font-medium text-volta-dark">Scrape your website</h4>
+                <p className="mt-1 text-sm text-volta-stone-600">Paste your homepage or product URL. We pull readable copy only.</p>
                 <input
                   type="url"
                   value={websiteUrl}
                   onChange={(event) => setWebsiteUrl(event.target.value)}
                   placeholder="https://www.example.com"
-                  className="mt-3 w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+                  className="mt-3 w-full border-2 border-volta-dark px-3 py-2 text-sm focus:border-volta-dark focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={handleWebsiteScrape}
                   disabled={websiteLoading}
-                  className="mt-3 inline-flex items-center justify-center rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
+                  className="border-2 border-volta-dark shadow-neo mt-3 inline-flex items-center justify-center bg-volta-dark px-3 py-1.5 text-sm font-medium text-white disabled:opacity-60 transition-transform hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-neo-hover active:translate-x-[1px] active:translate-y-[1px] active:shadow-neo-sm"
                 >
                   {websiteLoading ? 'Pulling…' : 'Pull website copy'}
                 </button>
-                {websiteError ? <p className="mt-2 text-xs text-rose-600">{websiteError}</p> : null}
+                {websiteError ? <p className="mt-2 text-xs text-volta-danger">{websiteError}</p> : null}
               </div>
-              <div className="rounded border border-slate-200 p-4">
-                <h4 className="text-base font-medium text-slate-800">Link a Google Doc</h4>
-                <p className="mt-1 text-sm text-slate-600">Share your pitch deck, scripting doc, or onboarding notes. Set the doc to viewable.</p>
+              <div className="border-2 border-volta-dark p-4">
+                <h4 className="text-base font-medium text-volta-dark">Link a Google Doc</h4>
+                <p className="mt-1 text-sm text-volta-stone-600">Share your pitch deck, scripting doc, or onboarding notes. Set the doc to viewable.</p>
                 <input
                   type="url"
                   value={googleDocUrl}
                   onChange={(event) => setGoogleDocUrl(event.target.value)}
                   placeholder="https://docs.google.com/document/d/..."
-                  className="mt-3 w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+                  className="mt-3 w-full border-2 border-volta-dark px-3 py-2 text-sm focus:border-volta-dark focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={handleGoogleDocImport}
                   disabled={googleDocLoading}
-                  className="mt-3 inline-flex items-center justify-center rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
+                  className="border-2 border-volta-dark shadow-neo mt-3 inline-flex items-center justify-center bg-volta-dark px-3 py-1.5 text-sm font-medium text-white disabled:opacity-60 transition-transform hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-neo-hover active:translate-x-[1px] active:translate-y-[1px] active:shadow-neo-sm"
                 >
                   {googleDocLoading ? 'Importing…' : 'Import Google Doc'}
                 </button>
-                {googleDocError ? <p className="mt-2 text-xs text-rose-600">{googleDocError}</p> : null}
+                {googleDocError ? <p className="mt-2 text-xs text-volta-danger">{googleDocError}</p> : null}
               </div>
-              <div className="rounded border border-slate-200 p-4">
-                <h4 className="text-base font-medium text-slate-800">Upload documents</h4>
-                <p className="mt-1 text-sm text-slate-600">Drop playbooks, FAQs, or tone guides. You can upload multiple files at once.</p>
-                <label className="mt-3 flex cursor-pointer items-center justify-center rounded border border-dashed border-slate-300 px-3 py-6 text-sm font-medium text-slate-700 hover:bg-slate-50">
+              <div className="border-2 border-volta-dark p-4">
+                <h4 className="text-base font-medium text-volta-dark">Upload documents</h4>
+                <p className="mt-1 text-sm text-volta-stone-600">Drop playbooks, FAQs, or tone guides. You can upload multiple files at once.</p>
+                <label className="mt-3 flex cursor-pointer items-center justify-center border-2 border-dashed border-volta-dark px-3 py-6 text-sm font-medium text-volta-stone-700 hover:bg-volta-stone-50">
                   Select files
                   <input
                     type="file"
@@ -2073,19 +2076,19 @@ const resolveProvider = useCallback((): AiProvider | null => {
                     className="hidden"
                   />
                 </label>
-                <p className="mt-2 text-xs text-slate-500">Supported: Markdown, plain text, JSON, PDF (we extract readable text).</p>
+                <p className="mt-2 text-xs text-volta-stone-500">Supported: Markdown, plain text, JSON, PDF (we extract readable text).</p>
                 {knowledgeUploadInfo ? (
-                  <p className="mt-1 text-xs text-emerald-600">{knowledgeUploadInfo}</p>
+                  <p className="mt-1 text-xs text-volta-success">{knowledgeUploadInfo}</p>
                 ) : null}
               </div>
             </div>
           </div>
           {knowledgeSources.length > 0 ? (
-            <div className="rounded border border-slate-200 bg-slate-50 p-4">
-              <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            <div className="border-2 border-volta-dark bg-volta-stone-50 p-4">
+              <h4 className="text-sm font-semibold uppercase tracking-wide text-volta-stone-500">
                 Linked sources
               </h4>
-              <p className="mt-1 text-xs text-slate-600">
+              <p className="mt-1 text-xs text-volta-stone-600">
                 We store summaries for quick drafting and keep the full text behind the scenes for deeper RAG use.
               </p>
               <ul className="mt-3 space-y-3 text-sm">
@@ -2093,26 +2096,26 @@ const resolveProvider = useCallback((): AiProvider | null => {
                   .slice()
                   .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                   .map((source) => (
-                    <li key={source.id} className="rounded border border-slate-200 bg-white p-3">
+                    <li key={source.id} className="border-2 border-volta-dark bg-volta-surface p-3">
                       <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-volta-stone-500">
                           {source.type === 'website'
                             ? 'Website'
                             : source.type === 'googleDoc'
                             ? 'Google Doc'
                             : 'Uploaded file'}
                         </span>
-                        <span className="text-xs text-slate-400">
+                        <span className="text-xs text-volta-stone-400">
                           Added {new Date(source.createdAt).toLocaleString()}
                         </span>
                       </div>
-                      <p className="mt-1 text-sm font-medium text-slate-800">
+                      <p className="mt-1 text-sm font-medium text-volta-dark">
                         {source.title ?? source.url ?? 'Untitled source'}
                       </p>
-                      <p className="mt-1 text-xs text-slate-600">
+                      <p className="mt-1 text-xs text-volta-stone-600">
                         {source.summary}
                       </p>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="mt-1 text-xs text-volta-stone-500">
                         {source.snippet}
                       </p>
                       {source.url ? (
@@ -2120,7 +2123,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                           href={source.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="mt-2 inline-flex text-xs font-medium text-slate-500 underline"
+                          className="mt-2 inline-flex text-xs font-medium text-volta-stone-500 underline"
                         >
                           Open source ↗
                         </a>
@@ -2130,17 +2133,17 @@ const resolveProvider = useCallback((): AiProvider | null => {
               </ul>
             </div>
           ) : null}
-          <div className="flex flex-col gap-2 border-t border-slate-200 pt-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-2 border-t border-volta-dark pt-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Step 3 • Save &amp; continue</h3>
-              <p className="text-sm text-slate-600">Review the text above, make edits, then lock it in.</p>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-volta-stone-500">Step 3 • Save &amp; continue</h3>
+              <p className="text-sm text-volta-stone-600">Review the text above, make edits, then lock it in.</p>
             </div>
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2">
               <button
                 type="button"
                 onClick={handleKnowledgeSave}
                 disabled={knowledgeSaving}
-                className="inline-flex items-center justify-center rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
+                className="border-2 border-volta-dark shadow-neo inline-flex items-center justify-center bg-volta-dark px-4 py-2 text-sm font-medium text-white disabled:opacity-60 transition-transform hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-neo-hover active:translate-x-[1px] active:translate-y-[1px] active:shadow-neo-sm"
               >
                 {knowledgeSaving ? 'Saving…' : 'Save knowledge base'}
               </button>
@@ -2150,14 +2153,14 @@ const resolveProvider = useCallback((): AiProvider | null => {
                   setDeleteIntent((prev) => !prev);
                   setDeleteConfirmText('');
                 }}
-                className="inline-flex items-center justify-center rounded border border-rose-300 px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50"
+                className="inline-flex items-center justify-center border-2 border-volta-danger px-4 py-2 text-sm font-medium text-volta-danger hover:bg-volta-danger-soft"
               >
                 Delete knowledge base
               </button>
             </div>
           </div>
           {deleteIntent ? (
-            <div className="mt-3 rounded border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+            <div className="mt-3 border-2 border-volta-danger bg-volta-danger-soft p-4 text-sm text-volta-danger">
               <p>
                 This will clear the summary and disconnect the linked sources from future drafting. Type
                 <strong className="mx-1">{deletePhrase}</strong> to confirm.
@@ -2167,7 +2170,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                   type="text"
                   value={deleteConfirmText}
                   onChange={(event) => setDeleteConfirmText(event.target.value)}
-                  className="flex-1 rounded border border-rose-300 px-3 py-2 text-sm focus:border-rose-500 focus:outline-none"
+                  className="flex-1 border-2 border-volta-danger px-3 py-2 text-sm focus:border-volta-danger focus:outline-none"
                   placeholder={deletePhrase}
                 />
                 <button
@@ -2206,7 +2209,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                       setError(deleteError instanceof Error ? deleteError.message : 'Failed to delete knowledge base.');
                     }
                   }}
-                  className="inline-flex items-center justify-center rounded bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700"
+                  className="border-2 border-volta-dark shadow-neo inline-flex items-center justify-center bg-volta-danger px-4 py-2 text-sm font-medium text-white transition-transform hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-neo-hover active:translate-x-[1px] active:translate-y-[1px] active:shadow-neo-sm"
                 >
                   Confirm deletion
                 </button>
@@ -2216,29 +2219,29 @@ const resolveProvider = useCallback((): AiProvider | null => {
         </div>
       </section>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="border-2 border-volta-dark bg-volta-surface p-6 shadow-neo-sm">
         <div className="grid gap-6 md:grid-cols-[260px_1fr]">
           <div>
-            <h2 className="text-lg font-medium text-slate-800">Sender Settings</h2>
-            <p className="mt-1 text-sm text-slate-600">
+            <h2 className="text-lg font-medium text-volta-dark">Sender Settings</h2>
+            <p className="mt-1 text-sm text-volta-stone-600">
               Choose the Gmail account that will send approved drafts.
             </p>
             {gmailConnections.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-600">
+              <p className="mt-3 text-sm text-volta-stone-600">
                 No Gmail accounts connected yet. Connect one to unlock sending.
               </p>
             ) : (
-              <label className="mt-3 flex flex-col gap-1 text-sm text-slate-700">
+              <label className="mt-3 flex flex-col gap-1 text-sm text-volta-stone-700">
                 Active Gmail connection
                 <select
                   value={connectionSelectValue}
                   onChange={(event) => setSelectedConnectionId(event.target.value)}
-                  className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+                  className="border-2 border-volta-dark px-3 py-2 text-sm focus:border-volta-dark focus:outline-none"
                 >
                   {gmailConnections.map((connection) => (
                     <option key={connection.id} value={connection.id}>
                       {connection.email}
-                      {connection.needsReauth ? " (needs reconnect)" : ""}
+                      {connection.needsReauth ?" (needs reconnect)" : ""}
                     </option>
                   ))}
                 </select>
@@ -2246,26 +2249,26 @@ const resolveProvider = useCallback((): AiProvider | null => {
             )}
             <a
               href={`/integrations/gmail/connect?projectId=${projectId}`}
-              className="mt-3 inline-flex items-center text-sm font-medium text-slate-700 hover:text-slate-900"
+              className="mt-3 inline-flex items-center text-sm font-medium text-volta-stone-700 hover:text-volta-dark"
             >
               Connect another account →
             </a>
             {gmailConnections.length > 0 && activeConnection?.needsReauth ? (
-              <div className="mt-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <div className="mt-3 border-2 border-volta-warn bg-volta-warn-soft px-3 py-2 text-sm text-volta-warn">
                 Gmail access for <span className="font-medium">{activeConnection.email}</span> has expired.
                 Reconnect the account above to refresh permissions before sending emails.
               </div>
             ) : null}
             {gmailConnections.length > 0 && activeConnection?.lastError && !activeConnection.needsReauth ? (
-              <div className="mt-3 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              <div className="mt-3 border-2 border-volta-dark bg-volta-stone-50 px-3 py-2 text-sm text-volta-stone-700">
                 Last Gmail response: {activeConnection.lastError}
                 {activeConnection.lastErrorAt ? ` (${new Date(activeConnection.lastErrorAt).toLocaleString()})` : ""}
               </div>
             ) : null}
           </div>
           <div>
-            <h2 className="text-lg font-medium text-slate-800">Lead Queue</h2>
-            <p className="mt-1 text-sm text-slate-600">
+            <h2 className="text-lg font-medium text-volta-dark">Lead Queue</h2>
+            <p className="mt-1 text-sm text-volta-stone-600">
               Select the leads you want the AI to prioritize when generating drafts.
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -2274,13 +2277,13 @@ const resolveProvider = useCallback((): AiProvider | null => {
                 value={leadSearch}
                 onChange={(event) => setLeadSearch(event.target.value)}
                 placeholder="Search by email, name, or company"
-                className="w-full min-w-[220px] flex-1 rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+                className="w-full min-w-[220px] flex-1 border-2 border-volta-dark px-3 py-2 text-sm focus:border-volta-dark focus:outline-none"
               />
               <button
                 type="button"
                 onClick={selectAllFiltered}
                 disabled={filteredLeads.length === 0}
-                className="rounded border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                className="border-2 border-volta-dark px-3 py-1.5 text-xs font-medium text-volta-stone-700 hover:bg-volta-stone-50 disabled:opacity-60"
               >
                 Select visible
               </button>
@@ -2288,48 +2291,48 @@ const resolveProvider = useCallback((): AiProvider | null => {
                 type="button"
                 onClick={clearSelectedLeads}
                 disabled={selectedLeadCount === 0}
-                className="rounded border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                className="border-2 border-volta-dark px-3 py-1.5 text-xs font-medium text-volta-stone-700 hover:bg-volta-stone-50 disabled:opacity-60"
               >
                 Clear
               </button>
               <button
                 type="button"
                 onClick={() => loadLeads()}
-                className="rounded border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                className="border-2 border-volta-dark px-3 py-1.5 text-xs font-medium text-volta-stone-700 hover:bg-volta-stone-50 disabled:opacity-60"
                 disabled={loadingLeads}
               >
                 {loadingLeads ? "Refreshing…" : "Refresh"}
               </button>
             </div>
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-volta-stone-500">
               {selectedLeadCount} selected • {leadOptions.length} loaded • showing {filteredLeads.length} matching
             </p>
             {leadLoadError ? (
-              <div className="mt-2 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              <div className="mt-2 border-2 border-volta-danger bg-volta-danger-soft px-3 py-2 text-xs text-volta-danger">
                 {leadLoadError}
               </div>
             ) : null}
-            <div className="mt-3 max-h-64 overflow-y-auto rounded border border-slate-200">
+            <div className="mt-3 max-h-64 overflow-y-auto border-2 border-volta-dark">
               {loadingLeads ? (
-                <p className="px-3 py-3 text-sm text-slate-600">Loading latest leads…</p>
+                <p className="px-3 py-3 text-sm text-volta-stone-600">Loading latest leads…</p>
               ) : filteredLeads.length === 0 ? (
-                <p className="px-3 py-3 text-sm text-slate-600">No leads match the current filter.</p>
+                <p className="px-3 py-3 text-sm text-volta-stone-600">No leads match the current filter.</p>
               ) : (
                 <ul className="divide-y divide-slate-200 text-sm">
                   {filteredLeads.map((lead) => {
                     const checked = selectedLeadIds.includes(lead.id);
                     return (
-                      <li key={lead.id} className="bg-white">
-                        <label className="flex cursor-pointer items-start gap-2 px-3 py-3 hover:bg-slate-50">
+                      <li key={lead.id} className="bg-volta-surface">
+                        <label className="flex cursor-pointer items-start gap-2 px-3 py-3 hover:bg-volta-stone-50">
                           <input
                             type="checkbox"
                             checked={checked}
                             onChange={() => toggleLeadSelection(lead.id)}
-                            className="mt-1 size-4 rounded border-slate-300"
+                            className="mt-1 size-4 border-volta-dark"
                           />
                           <div>
-                            <p className="font-medium text-slate-800">{lead.email}</p>
-                            <p className="text-xs text-slate-500">
+                            <p className="font-medium text-volta-dark">{lead.email}</p>
+                            <p className="text-xs text-volta-stone-500">
                               {[lead.firstName, lead.lastName].filter(Boolean).join(" ") || "Unnamed lead"}
                               {lead.company ? ` • ${lead.company}` : ""}
                             </p>
@@ -2345,11 +2348,11 @@ const resolveProvider = useCallback((): AiProvider | null => {
         </div>
       </section>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="border-2 border-volta-dark bg-volta-surface p-6 shadow-neo-sm">
         <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
           <div>
-            <h2 className="text-lg font-medium text-slate-800">AI Template Studio</h2>
-            <p className="mt-1 text-sm text-slate-600">
+            <h2 className="text-lg font-medium text-volta-dark">AI Template Studio</h2>
+            <p className="mt-1 text-sm text-volta-stone-600">
               Combine copy and design in one place. Let AI refresh both and it will immediately update the active HTML version used for drafts.
             </p>
           </div>
@@ -2366,39 +2369,39 @@ const resolveProvider = useCallback((): AiProvider | null => {
               setDesignerState(defaultDesignerState);
               setDesignMode('builder');
             }}
-            className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+            className="border-2 border-volta-dark shadow-neo bg-volta-dark px-3 py-1.5 text-sm font-medium text-white transition-transform hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-neo-hover active:translate-x-[1px] active:translate-y-[1px] active:shadow-neo-sm"
           >
             New template
           </button>
         </div>
-        <div className="mt-4 rounded border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+        <div className="mt-4 border-2 border-dashed border-volta-dark bg-volta-stone-50 p-4 text-sm text-volta-stone-600">
           Template Studio is coming soon. We&apos;ll add visual presets and layout controls here once they&apos;re ready.
         </div>
         {false && (
         <div className="mt-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Curated presets</p>
-              <p className="text-sm text-slate-600">Pick a starting point, then let AI strategically edit it.</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-volta-stone-400">Curated presets</p>
+              <p className="text-sm text-volta-stone-600">Pick a starting point, then let AI strategically edit it.</p>
             </div>
             {selectedPreset ? (
               <button
                 type="button"
                 onClick={() => setSelectedPresetId(null)}
-                className="text-xs font-medium text-slate-500 hover:text-slate-700"
+                className="text-xs font-medium text-volta-stone-500 hover:text-volta-stone-700"
               >
                 Clear preset
               </button>
             ) : null}
           </div>
           {presetError ? (
-            <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <div className="border-2 border-volta-warn bg-volta-warn-soft px-3 py-2 text-xs text-volta-warn">
               {presetError}
             </div>
           ) : null}
           <div className="flex gap-4 overflow-x-auto pb-2">
             {presetLoading && templatePresets.length === 0 ? (
-              <div className="flex min-w-[280px] items-center justify-center rounded border border-slate-200 bg-slate-50 p-6 text-xs text-slate-500">
+              <div className="flex min-w-[280px] items-center justify-center border-2 border-volta-dark bg-volta-stone-50 p-6 text-xs text-volta-stone-500">
                 Loading presets…
               </div>
             ) : null}
@@ -2407,33 +2410,33 @@ const resolveProvider = useCallback((): AiProvider | null => {
               return (
                 <article
                   key={preset.id}
-                  className={`min-w-[280px] max-w-[320px] flex-1 rounded-xl border ${
-                    active ? 'border-emerald-500 bg-emerald-50/70' : 'border-slate-200 bg-white'
-                  } shadow-sm transition`}
+                  className={`min-w-[280px] max-w-[320px] flex-1  border ${
+                    active ? 'border-volta-success bg-volta-success-soft/70' : 'border-volta-dark bg-volta-surface'
+                  } shadow-neo-sm transition`}
                 >
                   <div className="flex flex-col gap-3 p-4">
                     <div>
-                      <p className="text-sm font-semibold text-slate-800">{preset.name}</p>
-                      <p className="text-xs text-slate-500">{preset.summary}</p>
+                      <p className="text-sm font-semibold text-volta-dark">{preset.name}</p>
+                      <p className="text-xs text-volta-stone-500">{preset.summary}</p>
                     </div>
                     <div className="flex flex-wrap gap-1">
                       {preset.tags.map((tag) => (
                         <span
                           key={tag}
-                          className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500"
+                          className="rounded-full bg-volta-stone-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-volta-stone-500"
                         >
                           {tag}
                         </span>
                       ))}
                     </div>
-                    <div className="overflow-hidden rounded-lg border border-slate-200">
+                    <div className="overflow-hidden border-2 border-volta-dark">
                       <iframe title={preset.name} srcDoc={preset.html} className="h-36 w-full" />
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() => handleApplyPreset(preset)}
-                        className="rounded border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        className="border-2 border-volta-dark px-3 py-1 text-xs font-medium text-volta-stone-700 hover:bg-volta-stone-50"
                       >
                         Load preset
                       </button>
@@ -2444,7 +2447,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                           void handleGenerateAiTemplateBundle();
                         }}
                         disabled={suggestingTemplate}
-                        className="rounded bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                        className="border-2 border-volta-dark shadow-neo bg-volta-success px-3 py-1 text-xs font-semibold text-white disabled:opacity-60 transition-transform hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-neo-hover active:translate-x-[1px] active:translate-y-[1px] active:shadow-neo-sm"
                       >
                         {suggestingTemplate && active ? 'Refining…' : 'AI refine'}
                       </button>
@@ -2457,9 +2460,9 @@ const resolveProvider = useCallback((): AiProvider | null => {
         </div>
         )}
         <div className="mt-4 grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-          <aside className="rounded border border-slate-200 bg-slate-50 p-3 text-sm">
+          <aside className="border-2 border-volta-dark bg-volta-stone-50 p-3 text-sm">
             {templates.length === 0 ? (
-              <p className="text-slate-600">No templates yet. Create one to get started.</p>
+              <p className="text-volta-stone-600">No templates yet. Create one to get started.</p>
             ) : (
               <ul className="space-y-2">
                 {templates.map((template) => (
@@ -2477,10 +2480,10 @@ const resolveProvider = useCallback((): AiProvider | null => {
                         setDesignerState(defaultDesignerState);
                         setDesignMode(template.activeVersion?.htmlContent ? 'html' : 'builder');
                       }}
-                      className={`w-full rounded px-2 py-1 text-left ${
+                      className={`w-full  px-2 py-1 text-left ${
                         selectedId === template.id
-                          ? "bg-slate-900 text-white"
-                          : "bg-white text-slate-700 hover:bg-slate-100"
+                          ? "bg-volta-dark text-white"
+                          : "bg-volta-surface text-volta-stone-700 hover:bg-volta-stone-100"
                       }`}
                     >
                       {template.name}
@@ -2493,40 +2496,40 @@ const resolveProvider = useCallback((): AiProvider | null => {
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="flex flex-col gap-1">
-                <span className="text-sm font-medium text-slate-700">Template name</span>
+                <span className="text-sm font-medium text-volta-stone-700">Template name</span>
                 <input
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                  className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+                  className="border-2 border-volta-dark px-3 py-2 text-sm focus:border-volta-dark focus:outline-none"
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-sm font-medium text-slate-700">Subject</span>
+                <span className="text-sm font-medium text-volta-stone-700">Subject</span>
                 <input
                   value={subject}
                   onChange={(event) => setSubject(event.target.value)}
-                  className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+                  className="border-2 border-volta-dark px-3 py-2 text-sm focus:border-volta-dark focus:outline-none"
                 />
               </label>
             </div>
             <label className="flex flex-col gap-1">
-              <span className="text-sm font-medium text-slate-700">
+              <span className="text-sm font-medium text-volta-stone-700">
                 Body (uses placeholders like {'{{first_name}}'})
               </span>
               <textarea
                 value={body}
                 onChange={(event) => setBody(event.target.value)}
                 rows={8}
-                className="rounded border border-slate-300 px-3 py-2 font-mono text-xs focus:border-slate-500 focus:outline-none"
+                className="border-2 border-volta-dark px-3 py-2 font-mono text-xs focus:border-volta-dark focus:outline-none"
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-sm font-medium text-slate-700">AI strategy notes (optional)</span>
+              <span className="text-sm font-medium text-volta-stone-700">AI strategy notes (optional)</span>
               <textarea
                 value={strategyNotes}
                 onChange={(event) => setStrategyNotes(event.target.value)}
                 rows={3}
-                className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+                className="border-2 border-volta-dark px-3 py-2 text-sm focus:border-volta-dark focus:outline-none"
                 placeholder="Tell the AI how to adjust tone, highlight a benefit, address an objection, or tweak the CTA."
               />
             </label>
@@ -2535,7 +2538,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                 type="button"
                 onClick={() => handleSave()}
                 disabled={saving}
-                className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
+                className="border-2 border-volta-dark shadow-neo bg-volta-dark px-3 py-1.5 text-sm font-medium text-white disabled:opacity-60 transition-transform hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-neo-hover active:translate-x-[1px] active:translate-y-[1px] active:shadow-neo-sm"
               >
                 {saving ? "Saving…" : "Save copy"}
               </button>
@@ -2543,7 +2546,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                 type="button"
                 onClick={handleDeleteTemplate}
                 disabled={!selectedId || deletingTemplate}
-                className="rounded border border-rose-400 px-3 py-1.5 text-sm font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-60"
+                className="border-2 border-volta-danger px-3 py-1.5 text-sm font-medium text-volta-danger hover:bg-volta-danger-soft disabled:opacity-60"
               >
                 {deletingTemplate ? "Deleting…" : "Delete template"}
               </button>
@@ -2551,7 +2554,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                 type="button"
                 onClick={() => handleGenerateAiTemplateBundle()}
                 disabled={suggestingTemplate}
-                className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                className="border-2 border-volta-dark shadow-neo bg-volta-success px-3 py-1.5 text-sm font-medium text-white disabled:opacity-60 transition-transform hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-neo-hover active:translate-x-[1px] active:translate-y-[1px] active:shadow-neo-sm"
               >
                 {suggestingTemplate ? "Asking AI…" : "Ask AI to draft copy"}
               </button>
@@ -2559,7 +2562,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                 type="button"
                 onClick={() => handleGenerateDrafts(selectedLeadIds.length > 0 ? selectedLeadIds : undefined)}
                 disabled={generatingAi || selectedLeadIds.length === 0}
-                className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                className="border-2 border-volta-dark px-3 py-1.5 text-sm font-medium text-volta-stone-700 hover:bg-volta-stone-50 disabled:opacity-60"
               >
                 {generatingAi
                   ? "Generating drafts…"
@@ -2568,33 +2571,33 @@ const resolveProvider = useCallback((): AiProvider | null => {
               <button
                 type="button"
                 onClick={() => setChatOpen(true)}
-                className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="border-2 border-volta-dark px-3 py-1.5 text-sm font-medium text-volta-stone-700 hover:bg-volta-stone-50"
               >
                 Chat with AI
               </button>
             </div>
-            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+            <div className="border-2 border-dashed border-volta-dark bg-volta-stone-50 p-4 text-sm text-volta-stone-600">
               Template Studio layout tools are coming soon. We&apos;ll surface design controls here once they&apos;re ready.
             </div>
             {false && (
               <>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-4">
+                <div className="border-2 border-volta-dark bg-volta-stone-50 p-4 space-y-4">
                   <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                     <div>
-                      <h3 className="text-sm font-semibold text-slate-700">Layout & visuals</h3>
-                      <p className="text-xs text-slate-500">
+                      <h3 className="text-sm font-semibold text-volta-stone-700">Layout & visuals</h3>
+                      <p className="text-xs text-volta-stone-500">
                         AI keeps the HTML version in sync with your copy. Switch modes below for quick tweaks or full control.
                       </p>
                       {activeVersion ? (
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-volta-stone-500">
                           Active:{' '}
-                          <span className="font-semibold text-slate-700">
+                          <span className="font-semibold text-volta-stone-700">
                             {activeVersionTitle}
                           </span>{' '}
                           • Source: {activeVersionSourceLabel} • Updated {activeVersionUpdatedLabel}
                         </p>
                       ) : (
-                        <p className="text-xs text-amber-600">
+                        <p className="text-xs text-volta-warn">
                           No active HTML version yet. Generate with AI or save a layout to activate one.
                         </p>
                       )}
@@ -2604,7 +2607,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                         type="button"
                         onClick={handleSaveActiveVersion}
                         disabled={savingVersion}
-                        className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
+                        className="border-2 border-volta-dark shadow-neo bg-volta-dark px-3 py-1.5 text-sm font-medium text-white disabled:opacity-60 transition-transform hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-neo-hover active:translate-x-[1px] active:translate-y-[1px] active:shadow-neo-sm"
                       >
                         {savingVersion ? "Saving…" : activeVersion ? "Save layout" : "Save & activate"}
                       </button>
@@ -2612,21 +2615,21 @@ const resolveProvider = useCallback((): AiProvider | null => {
                         type="button"
                         onClick={() => handleCreateNewVersion(true)}
                         disabled={savingVersion}
-                        className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                        className="border-2 border-volta-dark px-3 py-1.5 text-sm font-medium text-volta-stone-700 hover:bg-volta-stone-50 disabled:opacity-60"
                       >
                         {savingVersion ? "Saving…" : "Save as new active version"}
                       </button>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium text-slate-700">Mode</span>
+                    <span className="text-sm font-medium text-volta-stone-700">Mode</span>
                     <button
                       type="button"
                       onClick={() => setDesignMode('builder')}
-                      className={`rounded px-3 py-1.5 text-sm font-medium ${
+                      className={` px-3 py-1.5 text-sm font-medium ${
                         designMode === 'builder'
-                          ? 'bg-slate-900 text-white'
-                          : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
+                          ? 'bg-volta-dark text-white'
+                          : 'border border-volta-dark text-volta-stone-700 hover:bg-volta-stone-50'
                       }`}
                     >
                       Guided builder
@@ -2634,10 +2637,10 @@ const resolveProvider = useCallback((): AiProvider | null => {
                     <button
                       type="button"
                       onClick={() => setDesignMode('html')}
-                      className={`rounded px-3 py-1.5 text-sm font-medium ${
+                      className={` px-3 py-1.5 text-sm font-medium ${
                         designMode === 'html'
-                          ? 'bg-slate-900 text-white'
-                          : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
+                          ? 'bg-volta-dark text-white'
+                          : 'border border-volta-dark text-volta-stone-700 hover:bg-volta-stone-50'
                       }`}
                     >
                       Raw HTML editor
@@ -2651,32 +2654,32 @@ const resolveProvider = useCallback((): AiProvider | null => {
                           <button
                             type="button"
                             onClick={() => handleApplyDesigner()}
-                            className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+                            className="border-2 border-volta-dark shadow-neo bg-volta-success px-3 py-1.5 text-sm font-medium text-white transition-transform hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-neo-hover active:translate-x-[1px] active:translate-y-[1px] active:shadow-neo-sm"
                           >
                             Apply design to HTML editor
                           </button>
                         </>
                       ) : (
-                        <label className="flex flex-col gap-2 text-sm text-slate-700">
+                        <label className="flex flex-col gap-2 text-sm text-volta-stone-700">
                           <span className="font-medium">HTML template</span>
                           <textarea
                             value={htmlDraft}
                             onChange={(event) => setHtmlDraft(event.target.value)}
                             rows={20}
-                            className="h-[360px] w-full rounded border border-slate-300 px-3 py-2 font-mono text-xs focus:border-slate-500 focus:outline-none"
+                            className="h-[360px] w-full border-2 border-volta-dark px-3 py-2 font-mono text-xs focus:border-volta-dark focus:outline-none"
                             placeholder="Paste or design your HTML template here"
                           />
                         </label>
                       )}
                     </div>
                     <div className="space-y-3">
-                      <label className="flex flex-col gap-2 text-sm text-slate-700">
+                      <label className="flex flex-col gap-2 text-sm text-volta-stone-700">
                         <span className="font-medium">AI design brief (optional)</span>
                         <textarea
                           value={htmlSuggestionNotes}
                           onChange={(event) => setHtmlSuggestionNotes(event.target.value)}
                           rows={4}
-                          className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+                          className="border-2 border-volta-dark px-3 py-2 text-sm focus:border-volta-dark focus:outline-none"
                           placeholder="Describe colors, layout, tone, or goals for AI-generated templates"
                         />
                       </label>
@@ -2684,18 +2687,18 @@ const resolveProvider = useCallback((): AiProvider | null => {
                         type="button"
                         onClick={() => handleGenerateAiTemplateBundle({ designOnly: true })}
                         disabled={suggestingTemplate}
-                        className="inline-flex items-center justify-center rounded border border-emerald-600 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
+                        className="inline-flex items-center justify-center border-2 border-volta-success px-3 py-1.5 text-sm font-medium text-volta-success hover:bg-volta-success-soft disabled:opacity-60"
                       >
                         {suggestingTemplate ? "Refreshing designs…" : "Refresh layout with AI"}
                       </button>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-volta-stone-500">
                         Reuse the latest copy but ask AI to rethink the visual treatment. We keep your current HTML in case you want to undo.
                       </p>
                     </div>
                   </div>
                   <div>
-                    <h4 className="text-sm font-medium text-slate-700">Live preview</h4>
-                    <div className="mt-2 overflow-hidden rounded border border-slate-200 bg-white shadow-sm">
+                    <h4 className="text-sm font-medium text-volta-stone-700">Live preview</h4>
+                    <div className="mt-2 overflow-hidden border-2 border-volta-dark bg-volta-surface shadow-neo-sm">
                       <iframe
                         title="Template preview"
                         srcDoc={
@@ -2707,11 +2710,11 @@ const resolveProvider = useCallback((): AiProvider | null => {
                       />
                     </div>
                     {designMode === 'builder' ? (
-                      <details className="mt-3 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                        <summary className="cursor-pointer select-none font-semibold text-slate-700">
+                      <details className="mt-3 border-2 border-volta-dark bg-volta-stone-50 px-3 py-2 text-xs text-volta-stone-600">
+                        <summary className="cursor-pointer select-none font-semibold text-volta-stone-700">
                           Plain text preview
                         </summary>
-                        <pre className="mt-2 whitespace-pre-wrap font-sans text-xs text-slate-600">
+                        <pre className="mt-2 whitespace-pre-wrap font-sans text-xs text-volta-stone-600">
                           {builderPreviewText}
                         </pre>
                       </details>
@@ -2721,34 +2724,34 @@ const resolveProvider = useCallback((): AiProvider | null => {
                 {htmlSuggestions?.length ? (
                   <div className="space-y-3">
                     <div className="flex items-baseline justify-between">
-                      <h3 className="text-sm font-medium text-slate-700">Alternate AI layouts</h3>
+                      <h3 className="text-sm font-medium text-volta-stone-700">Alternate AI layouts</h3>
                       <button
                         type="button"
                         onClick={() => setHtmlSuggestions(undefined)}
-                        className="text-xs font-medium text-slate-500 hover:text-slate-700"
+                        className="text-xs font-medium text-volta-stone-500 hover:text-volta-stone-700"
                       >
                         Dismiss
                       </button>
                     </div>
                     <div className="grid gap-4 md:grid-cols-2">
                       {(htmlSuggestions ?? []).map((suggestion) => (
-                        <div key={suggestion.id} className="flex flex-col gap-3 rounded border border-slate-200 p-3 shadow-sm">
+                        <div key={suggestion.id} className="flex flex-col gap-3 border-2 border-volta-dark p-3 shadow-neo-sm">
                           <div className="flex items-start justify-between">
                             <div>
-                              <p className="text-sm font-semibold text-slate-800">{suggestion.title}</p>
+                              <p className="text-sm font-semibold text-volta-dark">{suggestion.title}</p>
                               {suggestion.description ? (
-                                <p className="text-xs text-slate-500">{suggestion.description}</p>
+                                <p className="text-xs text-volta-stone-500">{suggestion.description}</p>
                               ) : null}
                             </div>
                             <button
                               type="button"
                               onClick={() => handleAdoptHtmlSuggestion(suggestion)}
-                              className="rounded bg-emerald-600 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
+                              className="border-2 border-volta-dark shadow-neo bg-volta-success px-2 py-1 text-xs font-semibold text-white transition-transform hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-neo-hover active:translate-x-[1px] active:translate-y-[1px] active:shadow-neo-sm"
                             >
                               Adopt
                             </button>
                           </div>
-                          <div className="overflow-hidden rounded border border-slate-200">
+                          <div className="overflow-hidden border-2 border-volta-dark">
                             <iframe
                               title={suggestion.title}
                               srcDoc={suggestion.htmlContent ?? ''}
@@ -2764,7 +2767,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                                   setBody(suggestion.textContent);
                                 }
                               }}
-                              className="rounded border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                              className="border-2 border-volta-dark px-3 py-1 text-xs font-medium text-volta-stone-700 hover:bg-volta-stone-50"
                             >
                               Load into editor
                             </button>
@@ -2778,21 +2781,21 @@ const resolveProvider = useCallback((): AiProvider | null => {
             )}
             {selectedTemplate?.versions && selectedTemplate.versions.length > 0 ? (
               <div className="space-y-2">
-                <h3 className="text-sm font-medium text-slate-700">Version history</h3>
+                <h3 className="text-sm font-medium text-volta-stone-700">Version history</h3>
                 <div className="space-y-2">
                   {selectedTemplate.versions.map((version) => (
                     <div
                       key={version.id}
-                      className={`flex flex-col gap-2 rounded border px-3 py-2 text-sm md:flex-row md:items-center md:justify-between ${
-                        version.isActive ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-slate-50'
+                      className={`flex flex-col gap-2  border px-3 py-2 text-sm md:flex-row md:items-center md:justify-between ${
+                        version.isActive ? 'border-volta-success bg-volta-success-soft' : 'border-volta-dark bg-volta-stone-50'
                       }`}
                     >
                       <div>
-                        <p className="font-medium text-slate-800">
+                        <p className="font-medium text-volta-dark">
                           {version.title}
                           {version.isActive ? ' (active)' : ''}
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-volta-stone-500">
                           Source: {version.source === 'AI' ? 'AI' : 'Human'} • Updated {new Date(version.updatedAt).toLocaleString()}
                         </p>
                       </div>
@@ -2800,7 +2803,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                         <button
                           type="button"
                           onClick={() => handleLoadVersionIntoEditor(version)}
-                          className="rounded border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                          className="border-2 border-volta-dark px-3 py-1 text-xs font-medium text-volta-stone-700 hover:bg-volta-stone-50"
                         >
                           Edit
                         </button>
@@ -2808,7 +2811,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                           <button
                             type="button"
                             onClick={() => handleActivateVersion(version.id)}
-                            className="rounded bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700"
+                            className="border-2 border-volta-dark shadow-neo bg-volta-success px-3 py-1 text-xs font-medium text-white transition-transform hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-neo-hover active:translate-x-[1px] active:translate-y-[1px] active:shadow-neo-sm"
                           >
                             Activate
                           </button>
@@ -2824,22 +2827,22 @@ const resolveProvider = useCallback((): AiProvider | null => {
       </section>
 
       {aiDrafts ? (
-        <section className="rounded-lg border border-emerald-200 bg-white p-6 shadow-sm">
+        <section className="border-2 border-volta-success bg-volta-surface p-6 shadow-neo-sm">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-medium text-slate-800">Drafts — {aiDrafts.length} total</h2>
-              <p className="mt-1 text-sm text-slate-600">
+              <h2 className="text-lg font-medium text-volta-dark">Drafts — {aiDrafts.length} total</h2>
+              <p className="mt-1 text-sm text-volta-stone-600">
                 Personalized emails generated from your template.{" "}
                 {activeConnection
                   ? `Approvals will send immediately from ${activeConnection.email}.`
                   : "Connect Gmail to approve and send without copying manually."}
               </p>
-              <label className="mt-2 flex items-start gap-2 text-xs text-slate-500">
+              <label className="mt-2 flex items-start gap-2 text-xs text-volta-stone-500">
                 <input
                   type="checkbox"
                   checked={bulkSendEnabled}
                   onChange={(event) => setBulkSendEnabled(event.target.checked)}
-                  className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-slate-900 focus:ring-2 focus:ring-slate-500/20"
+                  className="mt-0.5 h-3.5 w-3.5 border-volta-dark text-volta-dark focus:ring-2 focus:ring-slate-500/20"
                 />
                 <span>
                   Enable one-click send for all ready drafts. Review copy first—this uses the selected Gmail connection immediately.
@@ -2854,7 +2857,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                   setCurrentDraftPage(1);
                   setSuccess('All drafts cleared');
                 }}
-                className="inline-flex items-center justify-center rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="inline-flex items-center justify-center border-2 border-volta-dark bg-volta-surface px-3 py-1.5 text-sm font-medium text-volta-stone-700 hover:bg-volta-stone-50"
               >
                 Clear all drafts
               </button>
@@ -2869,7 +2872,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                 !activeConnection ||
                 activeConnection.needsReauth === true
               }
-              className="inline-flex items-center justify-center rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+              className="border-2 border-volta-dark shadow-neo inline-flex items-center justify-center bg-volta-success px-3 py-1.5 text-sm font-medium text-white disabled:opacity-60 transition-transform hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-neo-hover active:translate-x-[1px] active:translate-y-[1px] active:shadow-neo-sm"
             >
               {bulkSending
                 ? "Sending drafts…"
@@ -2882,13 +2885,13 @@ const resolveProvider = useCallback((): AiProvider | null => {
             </div>
           </div>
           <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,240px)]">
-            <label className="flex flex-col gap-2 text-sm text-slate-700">
+            <label className="flex flex-col gap-2 text-sm text-volta-stone-700">
               <span className="font-medium">Iteration guidance</span>
               <textarea
                 value={iterationNotes}
                 onChange={(event) => setIterationNotes(event.target.value)}
                 rows={3}
-                className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+                className="border-2 border-volta-dark px-3 py-2 text-sm focus:border-volta-dark focus:outline-none"
                 placeholder="Optional notes for AI when improving drafts (tone tweaks, new CTA, etc.)"
               />
             </label>
@@ -2897,7 +2900,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                 type="button"
                 onClick={() => handleIterateDrafts(aiDrafts ?? [])}
                 disabled={bulkIterating || !aiDrafts || aiDrafts.length === 0}
-                className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                className="border-2 border-volta-dark px-3 py-1.5 text-sm font-medium text-volta-stone-700 hover:bg-volta-stone-50 disabled:opacity-60"
               >
                 {bulkIterating ? 'Iterating…' : 'Iterate all drafts'}
               </button>
@@ -2909,7 +2912,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                   !aiDrafts ||
                   aiDrafts.filter((draft) => selectedLeadIds.includes(draft.leadId)).length === 0
                 }
-                className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                className="border-2 border-volta-dark px-3 py-1.5 text-sm font-medium text-volta-stone-700 hover:bg-volta-stone-50 disabled:opacity-60"
               >
                 {bulkIterating ? 'Iterating…' : 'Iterate selected leads'}
               </button>
@@ -2918,8 +2921,8 @@ const resolveProvider = useCallback((): AiProvider | null => {
           
           {/* Pagination Controls */}
           {aiDrafts.length > draftsPerPage && (
-            <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4">
-              <p className="text-sm text-slate-600">
+            <div className="mt-4 flex items-center justify-between border-t border-volta-dark pt-4">
+              <p className="text-sm text-volta-stone-600">
                 Showing {((currentDraftPage - 1) * draftsPerPage) + 1} to {Math.min(currentDraftPage * draftsPerPage, aiDrafts.length)} of {aiDrafts.length} drafts
               </p>
               <div className="flex gap-2">
@@ -2927,7 +2930,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                   type="button"
                   onClick={() => setCurrentDraftPage(p => Math.max(1, p - 1))}
                   disabled={currentDraftPage === 1}
-                  className="rounded border border-slate-300 px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="border-2 border-volta-dark px-3 py-1 text-sm font-medium text-volta-stone-700 hover:bg-volta-stone-50 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
@@ -2936,10 +2939,10 @@ const resolveProvider = useCallback((): AiProvider | null => {
                     key={pageNum}
                     type="button"
                     onClick={() => setCurrentDraftPage(pageNum)}
-                    className={`rounded px-3 py-1 text-sm font-medium ${
+                    className={` px-3 py-1 text-sm font-medium ${
                       currentDraftPage === pageNum
-                        ? 'bg-emerald-600 text-white'
-                        : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
+                        ? 'bg-volta-success text-white'
+                        : 'border border-volta-dark text-volta-stone-700 hover:bg-volta-stone-50'
                     }`}
                   >
                     {pageNum}
@@ -2949,7 +2952,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                   type="button"
                   onClick={() => setCurrentDraftPage(p => Math.min(Math.ceil(aiDrafts.length / draftsPerPage), p + 1))}
                   disabled={currentDraftPage === Math.ceil(aiDrafts.length / draftsPerPage)}
-                  className="rounded border border-slate-300 px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="border-2 border-volta-dark px-3 py-1 text-sm font-medium text-volta-stone-700 hover:bg-volta-stone-50 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
@@ -2961,23 +2964,23 @@ const resolveProvider = useCallback((): AiProvider | null => {
             {aiDrafts
               .slice((currentDraftPage - 1) * draftsPerPage, currentDraftPage * draftsPerPage)
               .map((draft) => (
-              <article key={draft.leadId} className="rounded border border-slate-200 bg-slate-50 p-4">
-                <header className="flex items-center justify-between text-sm text-slate-600">
+              <article key={draft.leadId} className="border-2 border-volta-dark bg-volta-stone-50 p-4">
+                <header className="flex items-center justify-between text-sm text-volta-stone-600">
                   <span>{draft.email}</span>
-                  <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-semibold uppercase text-emerald-700">
+                  <span className="bg-volta-success-soft px-2 py-0.5 text-xs font-semibold uppercase text-volta-success">
                     AI generated
                   </span>
                 </header>
                 {draft.notes ? (
-                  <p className="mt-2 text-xs text-slate-500">
+                  <p className="mt-2 text-xs text-volta-stone-500">
                     {draft.notes}
                   </p>
                 ) : null}
-                <h3 className="mt-2 text-base font-semibold text-slate-900">{draft.subject}</h3>
+                <h3 className="mt-2 text-base font-semibold text-volta-dark">{draft.subject}</h3>
                 <div className="mt-2 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,280px)]">
-                  <p className="whitespace-pre-wrap text-sm text-slate-700">{draft.body}</p>
+                  <p className="whitespace-pre-wrap text-sm text-volta-stone-700">{draft.body}</p>
                   <div>
-                    <div className="overflow-hidden rounded border border-slate-200 bg-white shadow-sm">
+                    <div className="overflow-hidden border-2 border-volta-dark bg-volta-surface shadow-neo-sm">
                       <iframe
                         title={`Preview ${draft.email}`}
                         srcDoc={draft.html ?? `<div style="font-family: Arial, sans-serif; padding: 16px;">${draft.body.replace(/\n/g, '<br />')}</div>`}
@@ -2986,15 +2989,15 @@ const resolveProvider = useCallback((): AiProvider | null => {
                     </div>
                   </div>
                 </div>
-                <label className="mt-3 flex flex-col gap-1 text-xs text-slate-600">
-                  <span className="font-medium text-slate-700">Vibe prompt (optional)</span>
+                <label className="mt-3 flex flex-col gap-1 text-xs text-volta-stone-600">
+                  <span className="font-medium text-volta-stone-700">Vibe prompt (optional)</span>
                   <textarea
                     value={vibeNotes[draft.leadId] ?? ''}
                     onChange={(event) =>
                       setVibeNotes((prev) => ({ ...prev, [draft.leadId]: event.target.value }))
                     }
                     rows={2}
-                    className="rounded border border-slate-300 px-3 py-1.5 text-xs focus:border-slate-500 focus:outline-none"
+                    className="border-2 border-volta-dark px-3 py-1.5 text-xs focus:border-volta-dark focus:outline-none"
                     placeholder="e.g., make it more playful, highlight the pilot timeline, or add social proof"
                   />
                 </label>
@@ -3007,7 +3010,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                       !activeConnection ||
                       activeConnection.needsReauth === true
                     }
-                    className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                    className="border-2 border-volta-dark shadow-neo bg-volta-success px-3 py-1.5 text-sm font-medium text-white disabled:opacity-60 transition-transform hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-neo-hover active:translate-x-[1px] active:translate-y-[1px] active:shadow-neo-sm"
                   >
                     {sendingDraftId === draft.leadId
                       ? "Sending…"
@@ -3025,7 +3028,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                       bulkIterating ||
                       !(vibeNotes[draft.leadId]?.trim())
                     }
-                    className="rounded border border-emerald-500 px-3 py-1.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 disabled:opacity-60"
+                    className="border-2 border-volta-success px-3 py-1.5 text-sm font-medium text-volta-success hover:bg-volta-success-soft disabled:opacity-60"
                   >
                     {iteratingDraftId === draft.leadId ? 'Vibing…' : 'Vibe edit'}
                   </button>
@@ -3033,7 +3036,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                     type="button"
                     onClick={() => handleIterateDraft(draft)}
                     disabled={iteratingDraftId === draft.leadId || bulkIterating}
-                    className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                    className="border-2 border-volta-dark px-3 py-1.5 text-sm font-medium text-volta-stone-700 hover:bg-volta-stone-100 disabled:opacity-60"
                   >
                     {iteratingDraftId === draft.leadId ? 'Iterating…' : 'Quick improve'}
                   </button>
@@ -3041,7 +3044,7 @@ const resolveProvider = useCallback((): AiProvider | null => {
                     type="button"
                     onClick={() => handleRegenerateDraft(draft.leadId)}
                     disabled={generatingAi}
-                    className="rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+                    className="border-2 border-volta-dark px-3 py-1.5 text-sm font-medium text-volta-stone-700 hover:bg-volta-stone-100 disabled:opacity-60"
                   >
                     {generatingAi ? "Regenerating…" : "Regenerate"}
                   </button>
@@ -3053,30 +3056,30 @@ const resolveProvider = useCallback((): AiProvider | null => {
       ) : null}
 
       {sentLog.length > 0 ? (
-        <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-medium text-slate-800">Recently Sent</h2>
-          <p className="mt-1 text-sm text-slate-600">
+        <section className="border-2 border-volta-dark bg-volta-surface p-6 shadow-neo-sm">
+          <h2 className="text-lg font-medium text-volta-dark">Recently Sent</h2>
+          <p className="mt-1 text-sm text-volta-stone-600">
             Approvals you&apos;ve completed in this session. Track which Gmail account handled each send.
           </p>
           <div className="mt-4 overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50">
+              <thead className="bg-volta-stone-50">
                 <tr>
-                  <th className="px-3 py-2 text-left font-semibold text-slate-700">Recipient</th>
-                  <th className="px-3 py-2 text-left font-semibold text-slate-700">Subject</th>
-                  <th className="px-3 py-2 text-left font-semibold text-slate-700">Sent at</th>
-                  <th className="px-3 py-2 text-left font-semibold text-slate-700">Gmail connection</th>
+                  <th className="px-3 py-2 text-left font-semibold text-volta-stone-700">Recipient</th>
+                  <th className="px-3 py-2 text-left font-semibold text-volta-stone-700">Subject</th>
+                  <th className="px-3 py-2 text-left font-semibold text-volta-stone-700">Sent at</th>
+                  <th className="px-3 py-2 text-left font-semibold text-volta-stone-700">Gmail connection</th>
                 </tr>
               </thead>
               <tbody>
                 {sentLog.map((entry) => (
-                  <tr key={entry.messageId} className="odd:bg-white even:bg-slate-50">
-                    <td className="px-3 py-2 text-slate-700">{entry.email}</td>
-                    <td className="px-3 py-2 text-slate-700">{entry.subject}</td>
-                    <td className="px-3 py-2 text-slate-600">
+                  <tr key={entry.messageId} className="odd:bg-volta-surface even:bg-volta-stone-50">
+                    <td className="px-3 py-2 text-volta-stone-700">{entry.email}</td>
+                    <td className="px-3 py-2 text-volta-stone-700">{entry.subject}</td>
+                    <td className="px-3 py-2 text-volta-stone-600">
                       {new Date(entry.sentAt).toLocaleString()}
                     </td>
-                    <td className="px-3 py-2 text-slate-600">{entry.gmailConnectionEmail}</td>
+                    <td className="px-3 py-2 text-volta-stone-600">{entry.gmailConnectionEmail}</td>
                   </tr>
                 ))}
               </tbody>

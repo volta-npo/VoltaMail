@@ -27,21 +27,24 @@ function SignInForm() {
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow">
-        <h1 className="text-2xl font-semibold text-slate-800">Sign in to VoltaMail</h1>
-        <p className="mt-2 text-sm text-slate-600">
+      <div className="w-full max-w-md border-2 border-volta-dark bg-volta-surface p-8 shadow-neo-lg">
+        <span className="inline-flex border-2 border-volta-dark bg-volta-accent px-2 py-1 font-mono text-[0.7rem] font-bold uppercase tracking-widest text-volta-dark shadow-neo-sm">
+          Sign In
+        </span>
+        <h1 className="mt-3 font-display text-3xl font-bold tracking-tight text-volta-dark">Sign in to VoltaMail</h1>
+        <p className="mt-2 text-sm text-volta-stone-700">
           VoltaMail uses Google Workspace accounts for authentication.
         </p>
-        {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
+        {error ? <p className="mt-4 text-sm font-bold text-volta-danger">{error}</p> : null}
         <button
           type="button"
           onClick={handleGoogleSignIn}
           disabled={googleLoading}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+          className="mt-6 flex w-full items-center justify-center gap-2 border-2 border-volta-dark bg-volta-surface px-4 py-2 text-sm font-bold text-volta-dark shadow-neo transition-transform hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-neo-hover active:translate-x-[1px] active:translate-y-[1px] active:shadow-neo-sm disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-neo-sm disabled:hover:translate-x-0 disabled:hover:translate-y-0"
         >
           {googleLoading ? "Redirecting to Google..." : "Continue with Google"}
         </button>
-        <p className="mt-4 text-center text-xs text-slate-500">
+        <p className="mt-4 text-center font-mono text-[0.7rem] font-bold uppercase tracking-widest text-volta-stone-500">
           By continuing you agree to the VoltaMail Terms of Service.
         </p>
       </div>
@@ -52,7 +55,7 @@ function SignInForm() {
 function LoadingState() {
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-8 text-center text-sm text-slate-600 shadow">
+      <div className="w-full max-w-md border-2 border-volta-dark bg-volta-surface p-8 text-center text-sm text-volta-stone-700 shadow-neo">
         Preparing sign-in…
       </div>
     </main>

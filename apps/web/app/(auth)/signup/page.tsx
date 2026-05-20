@@ -12,7 +12,7 @@ export default function LegacySignupRedirect() {
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-8 text-center text-sm text-slate-600 shadow">
+      <div className="w-full max-w-md border-2 border-volta-dark bg-volta-surface p-8 text-center text-sm text-volta-stone-700 shadow-neo">
         Redirecting to sign in…
       </div>
     </main>
