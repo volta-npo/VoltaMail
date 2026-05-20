@@ -181,15 +181,18 @@ export function AiSettingsForm({ initialConfig }: AiSettingsFormProps) {
 
   return (
     <div className="space-y-8">
-      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <h1 className="text-xl font-semibold text-slate-900">AI Provider Settings</h1>
-        <p className="mt-1 text-sm text-slate-600">
+      <section className="border-2 border-volta-dark bg-volta-surface p-6 shadow-neo">
+        <h1 className="flex items-center gap-2 border-b-2 border-volta-dark pb-3 font-display text-xl font-bold text-volta-dark">
+          <span className="inline-block h-3 w-3 border-2 border-volta-dark bg-volta-accent" aria-hidden />
+          AI Provider Settings
+        </h1>
+        <p className="mt-3 text-sm text-volta-stone-700">
           Bring your own API keys to control billing and model selection. Keys are encrypted at rest and
           stored per organization. You can also fall back to environment keys set by the VoltaMail team.
         </p>
 
-        <div className="mt-4 space-y-3">
-          <label className="block text-sm font-medium text-slate-700" htmlFor="default-provider">
+        <div className="mt-4 space-y-2">
+          <label className="block font-mono text-[0.7rem] font-bold uppercase tracking-widest text-volta-stone-700" htmlFor="default-provider">
             Default provider
           </label>
           <select
@@ -198,7 +201,7 @@ export function AiSettingsForm({ initialConfig }: AiSettingsFormProps) {
             onChange={() => {
               setConfig((prev) => ({ ...prev, defaultProvider: 'gemini' }));
             }}
-            className="block w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="block w-full border-2 border-volta-dark bg-volta-surface px-3 py-2 text-sm font-medium text-volta-dark disabled:opacity-70"
             disabled
           >
             <option value="gemini">Google Gemini (enforced)</option>
@@ -207,7 +210,7 @@ export function AiSettingsForm({ initialConfig }: AiSettingsFormProps) {
         <button
           type="button"
           onClick={handleDefaultSave}
-          className="rounded bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          className="mt-4 inline-flex items-center border-2 border-volta-dark bg-volta-primary px-4 py-2 text-sm font-bold text-white shadow-neo transition-transform hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-neo-hover active:translate-x-[1px] active:translate-y-[1px] active:shadow-neo-sm"
         >
           Gemini is the default
         </button>
@@ -216,8 +219,8 @@ export function AiSettingsForm({ initialConfig }: AiSettingsFormProps) {
         <p
           className={
             defaultStatus === 'error'
-              ? 'text-sm text-red-600'
-              : 'text-sm text-slate-600'
+              ? 'text-sm font-bold text-volta-danger'
+              : 'text-sm text-volta-stone-700'
           }
         >
           {defaultMessage}
@@ -233,26 +236,26 @@ export function AiSettingsForm({ initialConfig }: AiSettingsFormProps) {
           return (
             <div
               key={provider}
-              className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
+              className="border-2 border-volta-dark bg-volta-surface p-6 shadow-neo"
             >
               <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <h2 className="text-lg font-medium text-slate-800">{meta.name}</h2>
-                  <p className="text-sm text-slate-600">{meta.helper}</p>
+                  <h2 className="font-display text-lg font-bold text-volta-dark">{meta.name}</h2>
+                  <p className="text-sm text-volta-stone-700">{meta.helper}</p>
                   {meta.docs ? (
                     <a
                       href={meta.docs}
                       target="_blank"
                       rel="noreferrer"
-                      className="mt-1 inline-flex text-xs font-medium text-slate-500 underline"
+                      className="mt-1 inline-flex font-mono text-[0.7rem] font-bold uppercase tracking-widest text-volta-primary underline"
                     >
                       View docs
                     </a>
                   ) : null}
                 </div>
                 <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
-                    stored ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                  className={`self-start border-2 border-volta-dark px-2 py-1 font-mono text-[0.7rem] font-bold uppercase tracking-widest shadow-neo-sm ${
+                    stored ? 'bg-volta-success-soft text-volta-success' : 'bg-volta-stone-100 text-volta-stone-700'
                   }`}
                 >
                   {stored ? 'Key stored' : 'No key on file'}
@@ -260,7 +263,7 @@ export function AiSettingsForm({ initialConfig }: AiSettingsFormProps) {
               </div>
 
               <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <label className="block text-sm font-medium text-slate-700">
+                <label className="block font-mono text-[0.7rem] font-bold uppercase tracking-widest text-volta-stone-700">
                   API key
                   <input
                     type="password"
@@ -278,10 +281,10 @@ export function AiSettingsForm({ initialConfig }: AiSettingsFormProps) {
                       }))
                     }
                     placeholder={stored ? 'Enter new key to replace stored value' : 'sk-...'}
-                    className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20"
+                    className="mt-2 w-full border-2 border-volta-dark bg-volta-surface px-3 py-2 font-sans text-sm font-medium normal-case tracking-normal text-volta-dark placeholder:text-volta-stone-400"
                   />
                 </label>
-                <label className="block text-sm font-medium text-slate-700">
+                <label className="block font-mono text-[0.7rem] font-bold uppercase tracking-widest text-volta-stone-700">
                   Preferred model
                   <input
                     type="text"
@@ -298,19 +301,19 @@ export function AiSettingsForm({ initialConfig }: AiSettingsFormProps) {
                       }))
                     }
                     placeholder={configEntry?.model ?? ''}
-                    className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20"
+                    className="mt-2 w-full border-2 border-volta-dark bg-volta-surface px-3 py-2 font-sans text-sm font-medium normal-case tracking-normal text-volta-dark placeholder:text-volta-stone-400"
                   />
-                  <span className="mt-1 block text-xs text-slate-500">
+                  <span className="mt-1 block font-sans text-xs normal-case tracking-normal text-volta-stone-500">
                     Leave blank to use the provider default. Current: {configEntry?.model ?? 'default'}
                   </span>
                 </label>
               </div>
 
               <div className="mt-3 flex items-center justify-between gap-4">
-                <label className="inline-flex items-center gap-2 text-sm text-slate-600">
+                <label className="inline-flex items-center gap-2 text-sm text-volta-stone-700">
                   <input
                     type="checkbox"
-                    className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-2 focus:ring-slate-500/20"
+                    className="h-4 w-4 border-2 border-volta-dark accent-volta-primary"
                     checked={state.clearKey}
                     onChange={(event) => toggleClearKey(provider, event.target.checked)}
                   />
@@ -320,15 +323,15 @@ export function AiSettingsForm({ initialConfig }: AiSettingsFormProps) {
                   type="button"
                   onClick={() => handleProviderSave(provider)}
                   disabled={state.status === 'saving'}
-                  className="inline-flex items-center justify-center rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-70"
+                  className="inline-flex items-center justify-center border-2 border-volta-dark bg-volta-primary px-4 py-2 text-sm font-bold text-white shadow-neo transition-transform hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-neo-hover active:translate-x-[1px] active:translate-y-[1px] active:shadow-neo-sm disabled:cursor-not-allowed disabled:opacity-70 disabled:shadow-neo-sm disabled:hover:translate-x-0 disabled:hover:translate-y-0"
                 >
                   {state.status === 'saving' ? 'Saving…' : 'Save provider settings'}
                 </button>
               </div>
               {state.message ? (
                 <p
-                  className={`mt-2 text-sm ${
-                    state.status === 'error' ? 'text-rose-600' : 'text-emerald-600'
+                  className={`mt-2 text-sm font-bold ${
+                    state.status === 'error' ? 'text-volta-danger' : 'text-volta-success'
                   }`}
                 >
                   {state.message}

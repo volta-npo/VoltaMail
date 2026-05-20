@@ -93,62 +93,66 @@ export function TemplateDesigner(props: TemplateDesignerProps) {
     onChange({ ...value, [key]: fieldValue });
   };
 
+  const fieldLabelClass = "flex flex-col gap-2 font-mono text-[0.7rem] font-bold uppercase tracking-widest text-volta-stone-700";
+  const inputClass = "border-2 border-volta-dark bg-volta-surface px-3 py-2 font-sans text-sm font-medium normal-case tracking-normal text-volta-dark placeholder:text-volta-stone-400 disabled:opacity-60";
+  const colorClass = "h-10 w-full cursor-pointer border-2 border-volta-dark bg-volta-surface disabled:opacity-60";
+
   return (
     <div className="space-y-4">
       <div className="grid gap-3 md:grid-cols-2">
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          <span className="font-medium">Headline</span>
+        <label className={fieldLabelClass}>
+          <span>Headline</span>
           <input
             value={value.headline}
             onChange={(event) => handleFieldChange("headline", event.target.value)}
             disabled={disabled}
-            className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+            className={inputClass}
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          <span className="font-medium">Intro line</span>
+        <label className={fieldLabelClass}>
+          <span>Intro line</span>
           <input
             value={value.intro}
             onChange={(event) => handleFieldChange("intro", event.target.value)}
             disabled={disabled}
-            className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+            className={inputClass}
           />
         </label>
       </div>
       <div className="grid gap-3 md:grid-cols-3">
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          <span className="font-medium">Primary color</span>
+        <label className={fieldLabelClass}>
+          <span>Primary color</span>
           <input
             type="color"
             value={value.primaryColor}
             onChange={(event) => handleFieldChange("primaryColor", event.target.value)}
             disabled={disabled}
-            className="h-10 w-full cursor-pointer rounded border border-slate-200"
+            className={colorClass}
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          <span className="font-medium">Accent color</span>
+        <label className={fieldLabelClass}>
+          <span>Accent color</span>
           <input
             type="color"
             value={value.accentColor}
             onChange={(event) => handleFieldChange("accentColor", event.target.value)}
             disabled={disabled}
-            className="h-10 w-full cursor-pointer rounded border border-slate-200"
+            className={colorClass}
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          <span className="font-medium">Background color</span>
+        <label className={fieldLabelClass}>
+          <span>Background color</span>
           <input
             type="color"
             value={value.backgroundColor}
             onChange={(event) => handleFieldChange("backgroundColor", event.target.value)}
             disabled={disabled}
-            className="h-10 w-full cursor-pointer rounded border border-slate-200"
+            className={colorClass}
           />
         </label>
       </div>
-      <label className="flex flex-col gap-1 text-sm text-slate-700">
-        <span className="font-medium">Key benefits (one per line)</span>
+      <label className={fieldLabelClass}>
+        <span>Key benefits (one per line)</span>
         <textarea
           value={[value.bulletOne, value.bulletTwo, value.bulletThree].filter(Boolean).join("\n")}
           onChange={(event) => {
@@ -159,54 +163,54 @@ export function TemplateDesigner(props: TemplateDesignerProps) {
           }}
           disabled={disabled}
           rows={3}
-          className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+          className={inputClass}
         />
       </label>
       <div className="grid gap-3 md:grid-cols-2">
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          <span className="font-medium">Closing line</span>
+        <label className={fieldLabelClass}>
+          <span>Closing line</span>
           <textarea
             value={value.closing}
             onChange={(event) => handleFieldChange("closing", event.target.value)}
             disabled={disabled}
             rows={2}
-            className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+            className={inputClass}
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          <span className="font-medium">Signature</span>
+        <label className={fieldLabelClass}>
+          <span>Signature</span>
           <textarea
             value={value.signature}
             onChange={(event) => handleFieldChange("signature", event.target.value)}
             disabled={disabled}
             rows={2}
-            className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+            className={inputClass}
           />
         </label>
       </div>
       <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          <span className="font-medium">CTA label</span>
+        <label className={fieldLabelClass}>
+          <span>CTA label</span>
           <input
             value={value.ctaLabel}
             onChange={(event) => handleFieldChange("ctaLabel", event.target.value)}
             disabled={disabled}
-            className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+            className={inputClass}
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          <span className="font-medium">CTA link</span>
+        <label className={fieldLabelClass}>
+          <span>CTA link</span>
           <input
             value={value.ctaUrl}
             onChange={(event) => handleFieldChange("ctaUrl", event.target.value)}
             disabled={disabled}
-            className="rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+            className={inputClass}
           />
         </label>
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        <span className="text-sm font-medium text-slate-700">Layout</span>
-        <label className="flex items-center gap-2 text-sm text-slate-600">
+        <span className="font-mono text-[0.7rem] font-bold uppercase tracking-widest text-volta-stone-700">Layout</span>
+        <label className="flex items-center gap-2 text-sm text-volta-stone-700">
           <input
             type="radio"
             name="designer-layout"
@@ -214,10 +218,11 @@ export function TemplateDesigner(props: TemplateDesignerProps) {
             checked={value.layout === "classic"}
             onChange={() => handleFieldChange("layout", "classic")}
             disabled={disabled}
+            className="h-4 w-4 accent-volta-primary"
           />
           Classic card
         </label>
-        <label className="flex items-center gap-2 text-sm text-slate-600">
+        <label className="flex items-center gap-2 text-sm text-volta-stone-700">
           <input
             type="radio"
             name="designer-layout"
@@ -225,6 +230,7 @@ export function TemplateDesigner(props: TemplateDesignerProps) {
             checked={value.layout === "spotlight"}
             onChange={() => handleFieldChange("layout", "spotlight")}
             disabled={disabled}
+            className="h-4 w-4 accent-volta-primary"
           />
           Spotlight stripe
         </label>

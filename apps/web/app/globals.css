@@ -1,7 +1,66 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Instrument+Serif:ital@1&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-slate-50 text-slate-900;
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-volta-bg text-volta-dark font-sans antialiased;
+    font-feature-settings: "ss01" on, "cv11" on;
+    line-height: 1.5;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display tracking-tight;
+  }
+
+  ::selection {
+    @apply bg-volta-accent text-volta-dark;
+  }
+
+  *:focus-visible {
+    outline: 3px solid #84cc16;
+    outline-offset: 2px;
+  }
+
+  a {
+    @apply text-volta-primary;
+    text-underline-offset: 3px;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
+  button:not([class*='rounded']) {
+    @apply border-2 border-volta-dark bg-volta-primary text-white font-bold shadow-neo;
+    padding: 0.6rem 0.95rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+
+  button:not([class*='rounded']):hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0 0 #09090b;
+  }
+
+  button:not([class*='rounded']):active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 0 #09090b;
+  }
+
+  button:not([class*='rounded'])[disabled] {
+    opacity: 0.55;
+    cursor: not-allowed;
+    box-shadow: 1px 1px 0 0 #09090b;
+    transform: none;
+  }
 }
