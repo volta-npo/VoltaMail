@@ -209,6 +209,88 @@ export default async function DashboardPage() {
                         </div>
                       ))}
                     </div>
+
+                    <div className="mt-4 grid gap-3 text-xs text-slate-700 lg:grid-cols-2">
+                      <div className="rounded-lg border border-indigo-100 bg-white/80 p-3">
+                        <h5 className="font-semibold text-indigo-950">SaaS unit economics</h5>
+                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                          {saasPlan.unitEconomics.map((metric) => (
+                            <div key={metric.metric} className="rounded border border-slate-100 p-2">
+                              <p className="text-lg font-semibold text-slate-900">
+                                {metric.value}{metric.suffix}
+                              </p>
+                              <p className="font-medium">{metric.metric}</p>
+                              <p className="text-slate-500">{metric.rationale}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border border-indigo-100 bg-white/80 p-3">
+                        <h5 className="font-semibold text-indigo-950">Deliverability controls</h5>
+                        <div className="mt-2 space-y-2">
+                          {saasPlan.deliverabilityControls.map((control) => (
+                            <div key={control.control} className="rounded border border-slate-100 p-2">
+                              <p className="font-semibold text-slate-900">
+                                {control.status === 'ready' ? 'Ready' : 'Needs work'}: {control.control}
+                              </p>
+                              <p>{control.action}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border border-indigo-100 bg-white/80 p-3">
+                        <h5 className="font-semibold text-indigo-950">Lifecycle playbooks</h5>
+                        <div className="mt-2 space-y-2">
+                          {saasPlan.lifecyclePlaybooks.map((playbook) => (
+                            <div key={playbook.name} className="rounded border border-slate-100 p-2">
+                              <p className="font-semibold text-slate-900">{playbook.name}</p>
+                              <p>{playbook.trigger}</p>
+                              <p className="text-slate-500">{playbook.response}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border border-indigo-100 bg-white/80 p-3">
+                        <h5 className="font-semibold text-indigo-950">Expansion roadmap</h5>
+                        <div className="mt-2 space-y-2">
+                          {saasPlan.expansionRoadmap.map((item) => (
+                            <div key={item.horizon} className="rounded border border-slate-100 p-2">
+                              <p className="font-semibold text-slate-900">{item.horizon}: {item.release}</p>
+                              <p>{item.unlock}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border border-indigo-100 bg-white/80 p-3">
+                        <h5 className="font-semibold text-indigo-950">Persona matrix</h5>
+                        <div className="mt-2 space-y-2">
+                          {saasPlan.personas.map((persona) => (
+                            <div key={persona.role} className="rounded border border-slate-100 p-2">
+                              <p className="font-semibold text-slate-900">{persona.role}</p>
+                              <p>{persona.job}</p>
+                              <p className="text-slate-500">{persona.successMetric}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border border-indigo-100 bg-white/80 p-3">
+                        <h5 className="font-semibold text-indigo-950">Market positioning</h5>
+                        <div className="mt-2 space-y-2">
+                          {saasPlan.marketPositioning.map((position) => (
+                            <div key={position.segment} className="rounded border border-slate-100 p-2">
+                              <p className="font-semibold text-slate-900">{position.segment}</p>
+                              <p>{position.wedge}</p>
+                              <p className="text-slate-500">{position.proof}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Link
